@@ -176,8 +176,7 @@ void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*
     DrawText("Press F1 for Debug Overlay | Press ESC to Exit", 90, SCREEN_HEIGHT - 45, 18, Color{ 100, 100, 110, 255 });
 }
 
-bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings& /*settings*/, Audio& audio) {
-    Vector2 mousePos = GetMousePosition();
+bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings& /*settings*/, Audio& audio, Vector2 mousePos) {
     float startY = 320.0f;
     float spacing = 55.0f;
 
@@ -315,7 +314,7 @@ void UI::RenderGameOver(float /*dt*/) {
     DrawText("Press [ ESC ] for Main Menu", SCREEN_WIDTH / 2 - 150, 440, 22, LIGHTGRAY);
 }
 
-bool UI::HandleGameOverInput(GameState& state, NightManager& nightMgr, Audio& audio) {
+bool UI::HandleGameOverInput(GameState& state, NightManager& nightMgr, Audio& audio, Vector2 /*mousePos*/) {
     if (IsKeyPressed(KEY_ENTER)) {
         audio.PlayBlip();
         nightMgr.StartNight(nightMgr.GetCurrentNight());
@@ -393,7 +392,7 @@ void UI::RenderWinScreen() {
     DrawText("Press [ ENTER ] to Return to Menu", SCREEN_WIDTH / 2 - 160, SCREEN_HEIGHT - 80, 20, WHITE);
 }
 
-bool UI::HandleWinScreenInput(GameState& state, Audio& audio) {
+bool UI::HandleWinScreenInput(GameState& state, Audio& audio, Vector2 /*mousePos*/) {
     if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         audio.PlayBlip();
         state = GameState::MainMenu;
@@ -431,8 +430,7 @@ void UI::RenderSettingsMenu(Settings& settings, Audio& /*audio*/) {
     DrawText("BACK", backBtn.x + 48, backBtn.y + 12, 22, WHITE);
 }
 
-bool UI::HandleSettingsInput(GameState& state, Settings& settings, Audio& audio) {
-    Vector2 mPos = GetMousePosition();
+bool UI::HandleSettingsInput(GameState& state, Settings& settings, Audio& audio, Vector2 mPos) {
     float sx = 400.0f;
     float sy = 200.0f;
     float rowH = 65.0f;
@@ -538,8 +536,7 @@ void UI::RenderCustomNightMenu(NightManager& /*nightMgr*/, Audio& /*audio*/) {
     DrawText("Press [ ESC ] to Return", SCREEN_WIDTH / 2 - 110, 580, 18, GRAY);
 }
 
-bool UI::HandleCustomNightInput(GameState& state, NightManager& nightMgr, Audio& audio) {
-    Vector2 mPos = GetMousePosition();
+bool UI::HandleCustomNightInput(GameState& state, NightManager& nightMgr, Audio& audio, Vector2 mPos) {
     float cardW = 180.0f;
     float startX = (SCREEN_WIDTH - (4 * cardW + 3 * 30.0f)) * 0.5f;
     float cardY = 180.0f;

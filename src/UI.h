@@ -65,12 +65,12 @@ public:
     void RenderCustomNightMenu(NightManager& nightMgr, Audio& audio);
 
     // Input handlers
-    bool HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings& settings, Audio& audio);
-    bool HandleSettingsInput(GameState& state, Settings& settings, Audio& audio);
-    bool HandleCustomNightInput(GameState& state, NightManager& nightMgr, Audio& audio);
-    bool HandleGameOverInput(GameState& state, NightManager& nightMgr, Audio& audio);
+    bool HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings& settings, Audio& audio, Vector2 mousePos);
+    bool HandleSettingsInput(GameState& state, Settings& settings, Audio& audio, Vector2 mousePos);
+    bool HandleCustomNightInput(GameState& state, NightManager& nightMgr, Audio& audio, Vector2 mousePos);
+    bool HandleGameOverInput(GameState& state, NightManager& nightMgr, Audio& audio, Vector2 mousePos);
     bool Handle6AMInput(GameState& state, NightManager& nightMgr, Audio& audio);
-    bool HandleWinScreenInput(GameState& state, Audio& audio);
+    bool HandleWinScreenInput(GameState& state, Audio& audio, Vector2 mousePos);
 
     // Jumpscare helpers
     void StartJumpscare();

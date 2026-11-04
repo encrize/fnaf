@@ -1,5 +1,6 @@
 #include "Game.h"
 #include <raylib.h>
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -26,9 +27,25 @@ bool Game::Initialize() {
     m_cameras.LoadAssets(m_assets);
     m_ui.LoadAssets(m_assets);
 
+    m_screenTarget = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
+    SetTextureFilter(m_screenTarget.texture, TEXTURE_FILTER_BILINEAR);
+
     m_audio.PlayAmbient(true);
 
     return true;
+}
+
+Vector2 Game::GetVirtualMousePosition() const {
+    Vector2 m = GetMousePosition();
+    float screenW = static_cast<float>(GetScreenWidth());
+    float screenH = static_cast<float>(GetScreenHeight());
+    float scale = std::min(screenW / static_cast<float>(SCREEN_WIDTH), screenH / static_cast<float>(SCREEN_HEIGHT));
+    float offsetX = (screenW - (static_cast<float>(SCREEN_WIDTH) * scale)) * 0.5f;
+    float offsetY = (screenH - (static_cast<float>(SCREEN_HEIGHT) * scale)) * 0.5f;
+    return Vector2{
+        std::clamp((m.x - offsetX) / scale, 0.0f, static_cast<float>(SCREEN_WIDTH)),
+        std::clamp((m.y - offsetY) / scale, 0.0f, static_cast<float>(SCREEN_HEIGHT))
+    };
 }
 
 void Game::StartNightSession() {
@@ -77,10 +94,12 @@ void Game::ProcessInput() {
         if (IsKeyPressed(KEY_FOUR))  m_animatronics.ForceMove(AnimatronicID::Fox);
     }
 
+    Vector2 vMouse = GetVirtualMousePosition();
+
     // State specific input
     switch (m_state) {
         case GameState::MainMenu:
-            if (!m_ui.HandleMainMenuInput(m_state, m_nightManager, m_settings, m_audio)) {
+            if (!m_ui.HandleMainMenuInput(m_state, m_nightManager, m_settings, m_audio, vMouse)) {
                 m_running = false;
             }
             if (m_state == GameState::NightIntro) {
@@ -89,11 +108,11 @@ void Game::ProcessInput() {
             break;
 
         case GameState::SettingsMenu:
-            m_ui.HandleSettingsInput(m_state, m_settings, m_audio);
+            m_ui.HandleSettingsInput(m_state, m_settings, m_audio, vMouse);
             break;
 
         case GameState::CustomNightSelect:
-            m_ui.HandleCustomNightInput(m_state, m_nightManager, m_audio);
+            m_ui.HandleCustomNightInput(m_state, m_nightManager, m_audio, vMouse);
             if (m_state == GameState::NightIntro) {
                 m_nightIntroTimer = 0.0f;
             }
@@ -119,8 +138,10 @@ void Game::ProcessInput() {
             }
 
             // Input routing to Office and Cameras
-            m_cameras.HandleInput(powerDepleted, m_audio);
-            m_office.HandleInput(monitorUp, powerDepleted,
+            m_cameras.HandleInput(vMouse, powerDepleted, m_audio);
+            m_office.HandleInput(vMouse,
+                                 monitorUp,
+                                 powerDepleted,
                                  m_animatronics.IsRabbitAtDoor(),
                                  m_animatronics.IsChickenAtDoor(),
                                  m_audio);
@@ -134,7 +155,7 @@ void Game::ProcessInput() {
         }
 
         case GameState::GameOver:
-            m_ui.HandleGameOverInput(m_state, m_nightManager, m_audio);
+            m_ui.HandleGameOverInput(m_state, m_nightManager, m_audio, vMouse);
             if (m_state == GameState::Playing) {
                 StartNightSession();
             }
@@ -148,7 +169,7 @@ void Game::ProcessInput() {
             break;
 
         case GameState::Win:
-            m_ui.HandleWinScreenInput(m_state, m_audio);
+            m_ui.HandleWinScreenInput(m_state, m_audio, vMouse);
             break;
 
         default:
@@ -229,7 +250,8 @@ void Game::Update(float dt) {
 }
 
 void Game::Render() {
-    BeginDrawing();
+    // 1. Render all game content into virtual 1280x720 render target
+    BeginTextureMode(m_screenTarget);
     ClearBackground(BLACK);
 
     switch (m_state) {
@@ -325,6 +347,24 @@ void Game::Render() {
         RenderDebugOverlay();
     }
 
+    EndTextureMode();
+
+    // 2. Draw scaled render target with letterboxing/pillarboxing maintaining 16:9 aspect ratio
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    float screenW = static_cast<float>(GetScreenWidth());
+    float screenH = static_cast<float>(GetScreenHeight());
+    float scale = std::min(screenW / static_cast<float>(SCREEN_WIDTH), screenH / static_cast<float>(SCREEN_HEIGHT));
+    float offsetX = (screenW - (static_cast<float>(SCREEN_WIDTH) * scale)) * 0.5f;
+    float offsetY = (screenH - (static_cast<float>(SCREEN_HEIGHT) * scale)) * 0.5f;
+
+    // Flip texture vertically (render textures in OpenGL / raylib have inverted Y)
+    Rectangle srcRec = { 0.0f, 0.0f, static_cast<float>(m_screenTarget.texture.width), -static_cast<float>(m_screenTarget.texture.height) };
+    Rectangle dstRec = { offsetX, offsetY, static_cast<float>(SCREEN_WIDTH) * scale, static_cast<float>(SCREEN_HEIGHT) * scale };
+
+    DrawTexturePro(m_screenTarget.texture, srcRec, dstRec, Vector2{ 0, 0 }, 0.0f, WHITE);
+
     EndDrawing();
 }
 
@@ -365,6 +405,9 @@ void Game::Run() {
 }
 
 void Game::Shutdown() {
+    if (m_screenTarget.id != 0) {
+        UnloadRenderTexture(m_screenTarget);
+    }
     m_audio.Cleanup();
     m_assets.Cleanup();
     if (IsWindowReady()) {

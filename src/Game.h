@@ -35,6 +35,11 @@ private:
     float m_nightIntroTimer = 0.0f;
     AnimatronicID m_activeJumpscareAttacker = AnimatronicID::Bear;
 
+    // Render target for resolution scaling and aspect ratio letterboxing
+    RenderTexture2D m_screenTarget{};
+
+    Vector2 GetVirtualMousePosition() const;
+
     // Debug Mode
     bool m_debugMode = false;
 

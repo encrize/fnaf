@@ -21,10 +21,10 @@ void Office::LoadAssets(AssetManager& assets) {
     m_officeFlicker2 = assets.GetTexture("assets/images/office/office_freddy_flicker2.png");
     m_officeBlackout = assets.GetTexture("assets/images/office/office_blackout.png");
 
-    m_fanFrames.clear();
-    m_fanFrames.push_back(assets.GetTexture("assets/images/fan/57.png"));
-    m_fanFrames.push_back(assets.GetTexture("assets/images/fan/59.png"));
-    m_fanFrames.push_back(assets.GetTexture("assets/images/fan/60.png"));
+    m_officeNormalFrames.clear();
+    m_officeNormalFrames.push_back(assets.GetTexture("assets/images/office/office_frame1.png"));
+    m_officeNormalFrames.push_back(assets.GetTexture("assets/images/office/office_frame2.png"));
+    m_officeNormalFrames.push_back(assets.GetTexture("assets/images/office/office_frame3.png"));
 
     m_doorLFrames.clear();
     const char* doorLFiles[] = {
@@ -66,8 +66,8 @@ void Office::Reset() {
     m_rightDoorProgress = 0.0f;
     m_leftLightActive = false;
     m_rightLightActive = false;
-    m_fanAnimTimer = 0.0f;
-    m_fanFrame = 0;
+    m_officeFrameIdx = 0;
+    m_officeFrameTimer = 0.0f;
 
     m_leftDoorButton  = Rectangle{ 55.0f, 230.0f, 92.0f, 120.0f };
     m_leftLightButton = Rectangle{ 55.0f, 350.0f, 92.0f, 120.0f };
@@ -110,14 +110,13 @@ void Office::SetRightLight(bool active, bool chickenAtDoor, Audio& audio) {
     }
 }
 
-void Office::HandleInput(bool monitorUp, bool powerDepleted, bool rabbitAtDoor, bool chickenAtDoor, Audio& audio) {
+void Office::HandleInput(Vector2 mousePos, bool monitorUp, bool powerDepleted, bool rabbitAtDoor, bool chickenAtDoor, Audio& audio) {
     if (monitorUp || powerDepleted) {
         SetLeftLight(false, false, audio);
         SetRightLight(false, false, audio);
         return;
     }
 
-    Vector2 mousePos = GetMousePosition();
     float edgeZone = 220.0f;
     if (mousePos.x < edgeZone || IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
         m_targetCameraX = 0.0f;
@@ -162,11 +161,11 @@ void Office::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
     m_leftDoorProgress += (targetLeft - m_leftDoorProgress) * std::min(1.0f, dt * doorSpeed);
     m_rightDoorProgress += (targetRight - m_rightDoorProgress) * std::min(1.0f, dt * doorSpeed);
 
-    if (!powerDepleted && !m_fanFrames.empty()) {
-        m_fanAnimTimer += dt;
-        if (m_fanAnimTimer >= 0.04f) {
-            m_fanAnimTimer = 0.0f;
-            m_fanFrame = (m_fanFrame + 1) % m_fanFrames.size();
+    if (!powerDepleted && !m_officeNormalFrames.empty()) {
+        m_officeFrameTimer += dt;
+        if (m_officeFrameTimer >= 0.045f) {
+            m_officeFrameTimer = 0.0f;
+            m_officeFrameIdx = (m_officeFrameIdx + 1) % m_officeNormalFrames.size();
         }
     }
 }
@@ -174,8 +173,8 @@ void Office::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
 void Office::Render(bool rabbitAtDoor, bool chickenAtDoor, bool bearPowerOutFlicker, bool rareVisitorActive, bool powerDepleted) {
     float ox = -m_cameraX;
 
-    // 1. Office Background Selection
-    Texture2D activeBg = m_officeMain;
+    // 1. Office Background Selection (with natural animated fan)
+    Texture2D activeBg = m_officeNormalFrames.empty() ? m_officeMain : m_officeNormalFrames[m_officeFrameIdx];
 
     if (powerDepleted) {
         if (bearPowerOutFlicker) {
@@ -233,15 +232,7 @@ void Office::Render(bool rabbitAtDoor, bool chickenAtDoor, bool bearPowerOutFlic
         }
     }
 
-    // 4. Desk Fan Animation (at 740, 370)
-    if (!powerDepleted && !m_fanFrames.empty()) {
-        Texture2D fanTex = m_fanFrames[m_fanFrame];
-        if (fanTex.id != 0) {
-            DrawTexture(fanTex, ox + 740, 370, WHITE);
-        }
-    }
-
-    // 5. Golden Bear
+    // 4. Golden Bear
     if (rareVisitorActive && !powerDepleted) {
         if (m_goldenBearTex.id != 0) {
             DrawTexture(m_goldenBearTex, ox + 680, 480, WHITE);

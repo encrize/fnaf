@@ -25,9 +25,10 @@ private:
     bool m_leftLightActive = false;
     bool m_rightLightActive = false;
 
-    // Fan animation
-    float m_fanAnimTimer = 0.0f;
-    int m_fanFrame = 0;
+    // Office animated frames (integrated spinning desk fan)
+    std::vector<Texture2D> m_officeNormalFrames;
+    int m_officeFrameIdx = 0;
+    float m_officeFrameTimer = 0.0f;
 
     // Interactive button bounds (in office space)
     Rectangle m_leftDoorButton{};
@@ -45,7 +46,6 @@ private:
     Texture2D m_officeFlicker2{};
     Texture2D m_officeBlackout{};
 
-    std::vector<Texture2D> m_fanFrames;
     std::vector<Texture2D> m_doorLFrames;
     std::vector<Texture2D> m_doorRFrames;
 
@@ -67,7 +67,7 @@ public:
     void LoadAssets(AssetManager& assets);
     void Reset();
     void Update(float dt, bool powerDepleted, Audio& audio);
-    void HandleInput(bool monitorUp, bool powerDepleted, bool rabbitAtDoor, bool chickenAtDoor, Audio& audio);
+    void HandleInput(Vector2 mousePos, bool monitorUp, bool powerDepleted, bool rabbitAtDoor, bool chickenAtDoor, Audio& audio);
     void Render(bool rabbitAtDoor, bool chickenAtDoor, bool bearPowerOutFlicker, bool rareVisitorActive, bool powerDepleted);
 
     float GetCameraX() const { return m_cameraX; }

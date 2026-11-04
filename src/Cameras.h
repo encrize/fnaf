@@ -23,6 +23,7 @@ private:
     float m_monitorProgress = 0.0f; // 0.0 = down, 1.0 = up
     float m_staticTimer = 0.0f;
     float m_switchStaticTimer = 0.0f;
+    float m_camSweepTimer = 0.0f;
     int m_glitchFrame = 0;
 
     std::vector<CameraButton> m_mapButtons;
@@ -67,6 +68,7 @@ private:
 
     Texture2D m_restroomEmpty{};
     Texture2D m_restroomChica{};
+    Texture2D m_restroomFreddy{};
 
     Texture2D m_kitchenTex{};
 
@@ -78,7 +80,7 @@ public:
     void LoadAssets(AssetManager& assets);
     void Reset();
     void Update(float dt, bool powerDepleted, Audio& audio);
-    void HandleInput(bool powerDepleted, Audio& audio);
+    void HandleInput(Vector2 mousePos, bool powerDepleted, Audio& audio);
     void Render(float officeCameraX,
                 LocationID bearLoc,
                 LocationID rabbitLoc,

@@ -29,26 +29,26 @@ void Cameras::LoadAssets(AssetManager& assets) {
 
     // Stage
     m_stageAll = assets.GetTexture("assets/images/cams/Stage/19.png");
-    m_stageBonnieGone = assets.GetTexture("assets/images/cams/Stage/224.png");
-    m_stageChicaGone = assets.GetTexture("assets/images/cams/Stage/484.png");
-    m_stageEmpty = assets.GetTexture("assets/images/cams/Stage/68.png");
+    m_stageBonnieGone = assets.GetTexture("assets/images/cams/Stage/68.png");
+    m_stageChicaGone = assets.GetTexture("assets/images/cams/Stage/224.png");
+    m_stageEmpty = assets.GetTexture("assets/images/cams/Stage/484.png");
 
     // Dining
-    m_diningEmpty = assets.GetTexture("assets/images/cams/Dining/90.png");
-    m_diningBonnie = assets.GetTexture("assets/images/cams/Dining/120.png");
-    m_diningChica = assets.GetTexture("assets/images/cams/Dining/215.png");
-    m_diningFreddy = assets.GetTexture("assets/images/cams/Dining/48.png");
+    m_diningEmpty = assets.GetTexture("assets/images/cams/Dining/48.png");
+    m_diningBonnie = assets.GetTexture("assets/images/cams/Dining/90.png");
+    m_diningChica = assets.GetTexture("assets/images/cams/Dining/120.png");
+    m_diningFreddy = assets.GetTexture("assets/images/cams/Dining/215.png");
 
     // Cove
     m_coveClosed = assets.GetTexture("assets/images/cams/Cove/66.png");
-    m_covePeeking = assets.GetTexture("assets/images/cams/Cove/240.png");
-    m_coveOpen = assets.GetTexture("assets/images/cams/Cove/211.png");
+    m_covePeeking = assets.GetTexture("assets/images/cams/Cove/211.png");
+    m_coveOpen = assets.GetTexture("assets/images/cams/Cove/240.png");
 
     // West Hall & Corner
-    m_westHallEmpty = assets.GetTexture("assets/images/cams/WestHall/206.png");
-    m_westHallBonnie = assets.GetTexture("assets/images/cams/WestHall/188.png");
-    m_westCornerEmpty = assets.GetTexture("assets/images/cams/WestHall/336.png");
-    m_westCornerBonnie = assets.GetTexture("assets/images/cams/WestHall/549.png");
+    m_westHallEmpty = assets.GetTexture("assets/images/cams/WestHall/336.png");
+    m_westHallBonnie = assets.GetTexture("assets/images/cams/WestHall/206.png");
+    m_westCornerEmpty = assets.GetTexture("assets/images/cams/WestHall/549.png");
+    m_westCornerBonnie = assets.GetTexture("assets/images/cams/WestHall/188.png");
 
     // Closet
     m_closetEmpty = assets.GetTexture("assets/images/cams/Closet/62.png");
@@ -56,10 +56,10 @@ void Cameras::LoadAssets(AssetManager& assets) {
 
     // East Hall & Corner
     m_eastHallEmpty = assets.GetTexture("assets/images/cams/EastHall/67.png");
-    m_eastHallChica = assets.GetTexture("assets/images/cams/EastHall/486.png");
-    m_eastCornerEmpty = assets.GetTexture("assets/images/cams/EastHall/546.png");
-    m_eastCornerChica = assets.GetTexture("assets/images/cams/EastHall/571.png");
-    m_eastCornerFreddy = assets.GetTexture("assets/images/cams/EastHall/554.png");
+    m_eastHallChica = assets.GetTexture("assets/images/cams/EastHall/221.png");
+    m_eastCornerEmpty = assets.GetTexture("assets/images/cams/EastHall/571.png");
+    m_eastCornerChica = assets.GetTexture("assets/images/cams/EastHall/451.png");
+    m_eastCornerFreddy = assets.GetTexture("assets/images/cams/EastHall/486.png");
 
     // Backstage
     m_backstageEmpty = assets.GetTexture("assets/images/cams/Backstage/354.png");
@@ -67,7 +67,8 @@ void Cameras::LoadAssets(AssetManager& assets) {
 
     // Restroom
     m_restroomEmpty = assets.GetTexture("assets/images/cams/Restroom/41.png");
-    m_restroomChica = assets.GetTexture("assets/images/cams/Restroom/219.png");
+    m_restroomChica = assets.GetTexture("assets/images/cams/Restroom/217.png");
+    m_restroomFreddy = assets.GetTexture("assets/images/cams/Restroom/219.png");
 
     // Kitchen
     m_kitchenTex = assets.GetTexture("assets/images/cams/Kitchen/kitchen.png");
@@ -121,7 +122,7 @@ void Cameras::ForceMonitorDown() {
     m_monitorProgress = 0.0f;
 }
 
-void Cameras::HandleInput(bool powerDepleted, Audio& audio) {
+void Cameras::HandleInput(Vector2 mousePos, bool powerDepleted, Audio& audio) {
     if (powerDepleted) {
         ForceMonitorDown();
         return;
@@ -131,7 +132,6 @@ void Cameras::HandleInput(bool powerDepleted, Audio& audio) {
         ToggleMonitor(audio);
     }
 
-    Vector2 mousePos = GetMousePosition();
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mousePos, m_monitorFlipBar)) {
         ToggleMonitor(audio);
     }
@@ -167,6 +167,7 @@ void Cameras::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
     float target = m_monitorUp ? 1.0f : 0.0f;
     m_monitorProgress += (target - m_monitorProgress) * std::min(1.0f, dt * 10.0f);
 
+    m_camSweepTimer += dt * 0.4f;
     m_staticTimer += dt;
     if (m_switchStaticTimer > 0.0f) {
         m_switchStaticTimer -= dt;
@@ -221,14 +222,14 @@ void Cameras::Render(float /*officeCameraX*/,
     } else {
         switch (m_currentCam) {
             case CameraID::CAM_1A: // Show Stage
-                if (rabbitLoc != LocationID::ShowStage && chickenLoc != LocationID::ShowStage && bearLoc != LocationID::ShowStage) {
+                if (bearLoc != LocationID::ShowStage) {
                     camBg = m_stageEmpty;
-                } else if (rabbitLoc != LocationID::ShowStage && chickenLoc != LocationID::ShowStage) {
-                    camBg = m_stageChicaGone;
+                } else if (chickenLoc != LocationID::ShowStage && rabbitLoc != LocationID::ShowStage) {
+                    camBg = m_stageChicaGone; // Only Freddy remains
                 } else if (rabbitLoc != LocationID::ShowStage) {
-                    camBg = m_stageBonnieGone;
+                    camBg = m_stageBonnieGone; // Freddy and Chica remain
                 } else {
-                    camBg = m_stageAll;
+                    camBg = m_stageAll; // All 3 on stage
                 }
                 break;
 
@@ -277,7 +278,8 @@ void Cameras::Render(float /*officeCameraX*/,
                 break;
 
             case CameraID::CAM_7: // Restroom
-                if (chickenLoc == LocationID::Restrooms) camBg = m_restroomChica;
+                if (bearLoc == LocationID::Restrooms) camBg = m_restroomFreddy;
+                else if (chickenLoc == LocationID::Restrooms) camBg = m_restroomChica;
                 else camBg = m_restroomEmpty;
                 break;
 
@@ -286,8 +288,12 @@ void Cameras::Render(float /*officeCameraX*/,
         }
 
         if (camBg.id != 0) {
-            Rectangle src{ 0, 0, (float)camBg.width, (float)camBg.height };
-            Rectangle dst{ 0, monitorY, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
+            float panT = (std::sin(m_camSweepTimer) + 1.0f) * 0.5f;
+            float maxPan = std::max(0.0f, static_cast<float>(camBg.width) - static_cast<float>(SCREEN_WIDTH));
+            float camPan = panT * maxPan;
+
+            Rectangle src{ camPan, 0.0f, static_cast<float>(SCREEN_WIDTH), static_cast<float>(camBg.height) };
+            Rectangle dst{ 0.0f, monitorY, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) };
             DrawTexturePro(camBg, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
         } else {
             DrawRectangle(0, monitorY, SCREEN_WIDTH, SCREEN_HEIGHT, Color{ 20, 22, 28, 255 });
