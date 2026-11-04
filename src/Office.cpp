@@ -188,24 +188,26 @@ void Office::Render(bool rabbitAtDoor, bool chickenAtDoor, bool bearPowerOutFlic
         activeBg = chickenAtDoor ? m_officeLightRChica : m_officeLightR;
     }
 
+    int drawOx = static_cast<int>(std::round(ox));
+
     if (activeBg.id != 0) {
-        DrawTexture(activeBg, ox, 0, WHITE);
+        DrawTexture(activeBg, drawOx, 0, WHITE);
     } else {
-        DrawRectangle(ox, 0, 1600, SCREEN_HEIGHT, powerDepleted ? BLACK : Color{ 30, 32, 38, 255 });
+        DrawRectangle(drawOx, 0, 1600, SCREEN_HEIGHT, powerDepleted ? BLACK : Color{ 30, 32, 38, 255 });
     }
 
     // 2. Animated Doors
     if (m_leftDoorProgress > 0.01f && !m_doorLFrames.empty()) {
         int idx = std::clamp(static_cast<int>(m_leftDoorProgress * (m_doorLFrames.size() - 1)), 0, static_cast<int>(m_doorLFrames.size() - 1));
         if (m_doorLFrames[idx].id != 0) {
-            DrawTexture(m_doorLFrames[idx], ox + 72, 0, WHITE);
+            DrawTexture(m_doorLFrames[idx], drawOx + 72, 0, WHITE);
         }
     }
 
     if (m_rightDoorProgress > 0.01f && !m_doorRFrames.empty()) {
         int idx = std::clamp(static_cast<int>(m_rightDoorProgress * (m_doorRFrames.size() - 1)), 0, static_cast<int>(m_doorRFrames.size() - 1));
         if (m_doorRFrames[idx].id != 0) {
-            DrawTexture(m_doorRFrames[idx], ox + 1305, 0, WHITE);
+            DrawTexture(m_doorRFrames[idx], drawOx + 1305, 0, WHITE);
         }
     }
 
@@ -218,7 +220,7 @@ void Office::Render(bool rabbitAtDoor, bool chickenAtDoor, bool bearPowerOutFlic
         else if (m_leftLightActive) lBtn = m_btnL_Light;
 
         if (lBtn.id != 0) {
-            DrawTexture(lBtn, ox + 55, 230, WHITE);
+            DrawTexture(lBtn, drawOx + 55, 230, WHITE);
         }
 
         // Right Button Panel (1495, 230)
@@ -228,14 +230,14 @@ void Office::Render(bool rabbitAtDoor, bool chickenAtDoor, bool bearPowerOutFlic
         else if (m_rightLightActive) rBtn = m_btnR_Light;
 
         if (rBtn.id != 0) {
-            DrawTexture(rBtn, ox + 1495, 230, WHITE);
+            DrawTexture(rBtn, drawOx + 1495, 230, WHITE);
         }
     }
 
     // 4. Golden Bear
     if (rareVisitorActive && !powerDepleted) {
         if (m_goldenBearTex.id != 0) {
-            DrawTexture(m_goldenBearTex, ox + 680, 480, WHITE);
+            DrawTexture(m_goldenBearTex, drawOx + 680, 480, WHITE);
         }
     }
 }

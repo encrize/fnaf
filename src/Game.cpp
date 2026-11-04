@@ -308,12 +308,6 @@ void Game::Render() {
                 m_ui.RenderPhoneSubtitles(m_nightManager.GetCurrentPhoneSubtitles());
             }
 
-            // CRT Scanlines across screen if enabled
-            if (m_settings.crtEffects) {
-                for (int y = 0; y < SCREEN_HEIGHT; y += 4) {
-                    DrawLine(0, y, SCREEN_WIDTH, y, Color{ 0, 0, 0, 30 });
-                }
-            }
             break;
         }
 
