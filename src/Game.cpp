@@ -119,7 +119,6 @@ void Game::ProcessInput() {
         }
 
         case GameState::Playing: {
-            bool monitorUp = m_cameras.IsMonitorUp();
             bool powerDepleted = m_power.IsDepleted();
 
             // Mute / Skip phone call
@@ -133,7 +132,7 @@ void Game::ProcessInput() {
             // Input routing to Office and Cameras
             m_cameras.HandleInput(vMouse, powerDepleted, m_audio);
             m_office.HandleInput(vMouse,
-                                 monitorUp,
+                                 m_cameras.IsMonitorUp(),
                                  powerDepleted,
                                  m_animatronics.IsRabbitAtDoor(),
                                  m_animatronics.IsChickenAtDoor(),

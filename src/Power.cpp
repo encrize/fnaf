@@ -55,7 +55,6 @@ void Power::Update(float dt, bool leftDoor, bool rightDoor, bool leftLight, bool
         else if (m_usageLevel >= 5) drainInterval = 0.6f;
 
         m_power -= (1.0f / drainInterval) * dt;
-
         if (m_power <= 0.0f) {
             m_power = 0.0f;
             m_depleted = true;

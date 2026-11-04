@@ -156,6 +156,8 @@ void Cameras::Reset() {
     m_staticTimer = 0.0f;
     m_switchStaticTimer = 0.0f;
     m_glitchFrame = 0;
+    m_mouseWasInFlipBar = false;
+    m_flipCooldown = 0.0f;
 }
 
 void Cameras::SetupMapButtons() {
@@ -205,31 +207,50 @@ void Cameras::HandleInput(Vector2 mousePos, bool powerDepleted, Audio& audio) {
 
     if (IsKeyPressed(KEY_SPACE)) {
         ToggleMonitor(audio);
+        m_flipCooldown = 0.3f;
     }
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mousePos, m_monitorFlipBar)) {
+    bool inFlipBar = CheckCollisionPointRec(mousePos, m_monitorFlipBar);
+
+    // Hover entry toggle (authentic FNAF 1): when mouse crosses into bottom bar with cooldown
+    if (inFlipBar && !m_mouseWasInFlipBar && m_flipCooldown <= 0.0f) {
         ToggleMonitor(audio);
+        m_flipCooldown = 0.35f;
     }
 
-    if (m_monitorUp && m_monitorProgress > 0.8f) {
+    // Click toggle on bottom bar
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && inFlipBar && m_flipCooldown <= 0.0f) {
+        ToggleMonitor(audio);
+        m_flipCooldown = 0.35f;
+    }
+
+    m_mouseWasInFlipBar = inFlipBar;
+
+    // Camera switching via map buttons or number keys when monitor is up
+    if (m_monitorUp && m_monitorProgress >= 0.9f) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             for (const auto& btn : m_mapButtons) {
-                if (CheckCollisionPointRec(mousePos, btn.rect)) {
+                // Generous hitbox (+4px padding around button) for crisp responsive clicking
+                Rectangle hitRect{ btn.rect.x - 4.0f, btn.rect.y - 4.0f, btn.rect.width + 8.0f, btn.rect.height + 8.0f };
+                if (CheckCollisionPointRec(mousePos, hitRect)) {
                     SetCurrentCamera(btn.id, audio);
                     break;
                 }
             }
         }
 
-        if (IsKeyPressed(KEY_ONE))   SetCurrentCamera(CameraID::CAM_1A, audio);
-        if (IsKeyPressed(KEY_TWO))   SetCurrentCamera(CameraID::CAM_1B, audio);
-        if (IsKeyPressed(KEY_THREE)) SetCurrentCamera(CameraID::CAM_1C, audio);
-        if (IsKeyPressed(KEY_FOUR))  SetCurrentCamera(CameraID::CAM_2A, audio);
-        if (IsKeyPressed(KEY_FIVE))  SetCurrentCamera(CameraID::CAM_2B, audio);
-        if (IsKeyPressed(KEY_SIX))   SetCurrentCamera(CameraID::CAM_3,  audio);
-        if (IsKeyPressed(KEY_SEVEN)) SetCurrentCamera(CameraID::CAM_4A, audio);
-        if (IsKeyPressed(KEY_EIGHT)) SetCurrentCamera(CameraID::CAM_4B, audio);
-        if (IsKeyPressed(KEY_NINE))  SetCurrentCamera(CameraID::CAM_5,  audio);
+        // Hotkeys (Top row numbers and numpad)
+        if (IsKeyPressed(KEY_ONE)   || IsKeyPressed(KEY_KP_1)) SetCurrentCamera(CameraID::CAM_1A, audio);
+        if (IsKeyPressed(KEY_TWO)   || IsKeyPressed(KEY_KP_2)) SetCurrentCamera(CameraID::CAM_1B, audio);
+        if (IsKeyPressed(KEY_THREE) || IsKeyPressed(KEY_KP_3)) SetCurrentCamera(CameraID::CAM_1C, audio);
+        if (IsKeyPressed(KEY_FOUR)  || IsKeyPressed(KEY_KP_4)) SetCurrentCamera(CameraID::CAM_2A, audio);
+        if (IsKeyPressed(KEY_FIVE)  || IsKeyPressed(KEY_KP_5)) SetCurrentCamera(CameraID::CAM_2B, audio);
+        if (IsKeyPressed(KEY_SIX)   || IsKeyPressed(KEY_KP_6)) SetCurrentCamera(CameraID::CAM_3,  audio);
+        if (IsKeyPressed(KEY_SEVEN) || IsKeyPressed(KEY_KP_7)) SetCurrentCamera(CameraID::CAM_4A, audio);
+        if (IsKeyPressed(KEY_EIGHT) || IsKeyPressed(KEY_KP_8)) SetCurrentCamera(CameraID::CAM_4B, audio);
+        if (IsKeyPressed(KEY_NINE)  || IsKeyPressed(KEY_KP_9)) SetCurrentCamera(CameraID::CAM_5,  audio);
+        if (IsKeyPressed(KEY_ZERO)  || IsKeyPressed(KEY_KP_0)) SetCurrentCamera(CameraID::CAM_6,  audio);
+        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_EQUAL)) SetCurrentCamera(CameraID::CAM_7, audio);
     }
 }
 
@@ -239,8 +260,16 @@ void Cameras::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
         return;
     }
 
-    float target = m_monitorUp ? 1.0f : 0.0f;
-    m_monitorProgress += (target - m_monitorProgress) * std::min(1.0f, dt * 10.0f);
+    if (m_flipCooldown > 0.0f) {
+        m_flipCooldown -= dt;
+    }
+
+    const float flipSpeed = 4.5f; // Fast, responsive 0.22s flip identical to original FNAF 1
+    if (m_monitorUp) {
+        m_monitorProgress = std::min(1.0f, m_monitorProgress + dt * flipSpeed);
+    } else {
+        m_monitorProgress = std::max(0.0f, m_monitorProgress - dt * flipSpeed);
+    }
 
     m_camSweepTimer += dt * 0.4f;
     m_staticTimer += dt;
@@ -259,19 +288,20 @@ void Cameras::Render(float /*officeCameraX*/,
                      LocationID chickenLoc,
                      FoxState foxState,
                      bool crtEnabled) {
-    if (m_monitorProgress <= 0.01f) {
+    if (m_monitorProgress <= 0.0f) {
         Vector2 mousePos = GetVirtualMousePosition();
         bool hovering = CheckCollisionPointRec(mousePos, m_monitorFlipBar);
         Color barColor = hovering ? Color{ 80, 160, 220, 160 } : Color{ 40, 40, 50, 140 };
         DrawRectangleRec(m_monitorFlipBar, barColor);
         DrawRectangleLinesEx(m_monitorFlipBar, 2, hovering ? SKYBLUE : GRAY);
-        DrawText("[ SPACE / CLICK ] TO OPEN CAMERA MONITOR", m_monitorFlipBar.x + 90, m_monitorFlipBar.y + 12, 18, WHITE);
+        DrawText("[ SPACE / HOVER / CLICK ] TO OPEN CAMERA MONITOR", m_monitorFlipBar.x + 60, m_monitorFlipBar.y + 12, 18, WHITE);
         return;
     }
 
     // Monitor Flip Animation Frames if transitioning
-    if (m_monitorProgress < 0.95f && !m_flipFrames.empty()) {
-        int frameIdx = std::clamp(static_cast<int>(m_monitorProgress * (m_flipFrames.size() - 1)), 0, static_cast<int>(m_flipFrames.size() - 1));
+    if (m_monitorProgress < 1.0f && !m_flipFrames.empty()) {
+        int totalFrames = static_cast<int>(m_flipFrames.size());
+        int frameIdx = std::clamp(static_cast<int>(m_monitorProgress * totalFrames), 0, totalFrames - 1);
         Texture2D flipTex = m_flipFrames[frameIdx];
         if (flipTex.id != 0) {
             Rectangle src{ 0, 0, (float)flipTex.width, (float)flipTex.height };
@@ -281,17 +311,15 @@ void Cameras::Render(float /*officeCameraX*/,
         }
     }
 
-    float monitorY = (1.0f - m_monitorProgress) * SCREEN_HEIGHT;
-
-    // 1. Select Camera Background Texture based on animatronic state
+    // When monitor is fully open, render active camera feed
     if (m_currentCam == CameraID::CAM_6) {
         // Kitchen: Audio Only
-        DrawRectangle(0, monitorY, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
-        DrawText("- CAMERA DISABLED -", SCREEN_WIDTH / 2 - 160, monitorY + 280, 28, Color{ 200, 200, 60, 255 });
-        DrawText("AUDIO ONLY", SCREEN_WIDTH / 2 - 80, monitorY + 330, 22, Color{ 180, 180, 180, 255 });
+        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+        DrawText("- CAMERA DISABLED -", SCREEN_WIDTH / 2 - 160, 280, 28, Color{ 200, 200, 60, 255 });
+        DrawText("AUDIO ONLY", SCREEN_WIDTH / 2 - 80, 330, 22, Color{ 180, 180, 180, 255 });
         float pulse = std::sin(m_staticTimer * 8.0f) * 15.0f;
-        DrawCircle(SCREEN_WIDTH / 2, monitorY + 390, 25 + pulse, Color{ 100, 100, 120, 100 });
-        DrawCircle(SCREEN_WIDTH / 2, monitorY + 390, 12, Color{ 220, 220, 240, 255 });
+        DrawCircle(SCREEN_WIDTH / 2, 390, 25 + pulse, Color{ 100, 100, 120, 100 });
+        DrawCircle(SCREEN_WIDTH / 2, 390, 12, Color{ 220, 220, 240, 255 });
     } else {
         std::string feedPath = DetermineCameraFeedPath(bearLoc, rabbitLoc, chickenLoc, foxState);
         Texture2D camBg = feedPath.empty() ? Texture2D{} : GetCachedCameraTexture(feedPath);
@@ -304,11 +332,11 @@ void Cameras::Render(float /*officeCameraX*/,
             float camPan = panT * maxPan;
 
             Rectangle src{ camPan, 0.0f, viewWidth, static_cast<float>(camBg.height) };
-            Rectangle dst{ 0.0f, monitorY, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) };
+            Rectangle dst{ 0.0f, 0.0f, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) };
             // Bilinear upscaled 8-bit grayscale with authentic cold surveillance tint
             DrawTexturePro(camBg, src, dst, Vector2{ 0, 0 }, 0.0f, Color{ 215, 230, 240, 255 });
         } else {
-            DrawRectangle(0, monitorY, SCREEN_WIDTH, SCREEN_HEIGHT, Color{ 20, 22, 28, 255 });
+            DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Color{ 20, 22, 28, 255 });
         }
     }
 
@@ -318,29 +346,29 @@ void Cameras::Render(float /*officeCameraX*/,
         if (gTex.id != 0) {
             float alpha = (m_switchStaticTimer > 0.0f) ? 0.85f : 0.25f;
             Rectangle src{ 0, 0, (float)gTex.width, (float)gTex.height };
-            Rectangle dst{ 0, monitorY, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
+            Rectangle dst{ 0, 0, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
             DrawTexturePro(gTex, src, dst, Vector2{ 0, 0 }, 0.0f, ColorAlpha(WHITE, alpha));
         }
     }
 
     // 3. CRT Scanlines
     if (crtEnabled) {
-        for (int y = static_cast<int>(monitorY); y < SCREEN_HEIGHT; y += 4) {
+        for (int y = 0; y < SCREEN_HEIGHT; y += 4) {
             DrawLine(0, y, SCREEN_WIDTH, y, Color{ 0, 0, 0, 45 });
         }
     }
 
     // 4. Camera Name & REC indicator
-    DrawText(GetCameraName(m_currentCam), 60, monitorY + 50, 24, Color{ 220, 220, 220, 255 });
+    DrawText(GetCameraName(m_currentCam), 60, 50, 24, Color{ 220, 220, 220, 255 });
     bool recBlink = (std::fmod(m_staticTimer, 1.0f) < 0.5f);
     if (recBlink) {
-        DrawCircle(SCREEN_WIDTH - 120, monitorY + 60, 10, RED);
-        DrawText("REC", SCREEN_WIDTH - 100, monitorY + 50, 22, RED);
+        DrawCircle(SCREEN_WIDTH - 120, 60, 10, RED);
+        DrawText("REC", SCREEN_WIDTH - 100, 50, 22, RED);
     }
 
     // 5. Interactive Surveillance Minimap in Bottom-Right
     float mapX = 900.0f;
-    float mapY = monitorY + 340.0f;
+    float mapY = 340.0f;
 
     if (m_mapTex.id != 0) {
         DrawTexture(m_mapTex, mapX - 20, mapY - 20, WHITE);
@@ -351,27 +379,22 @@ void Cameras::Render(float /*officeCameraX*/,
 
     Vector2 mousePos = GetVirtualMousePosition();
     for (const auto& btn : m_mapButtons) {
-        Rectangle drawRect = btn.rect;
-        drawRect.y += monitorY;
-
         bool isCurrent = (btn.id == m_currentCam);
-        bool hovering = CheckCollisionPointRec(mousePos, drawRect);
+        bool hovering = CheckCollisionPointRec(mousePos, btn.rect);
 
         Color btnBg = isCurrent ? Color{ 50, 160, 70, 255 } : (hovering ? Color{ 80, 90, 110, 255 } : Color{ 35, 40, 50, 255 });
-        DrawRectangleRec(drawRect, btnBg);
-        DrawRectangleLinesEx(drawRect, isCurrent ? 2 : 1, isCurrent ? GREEN : GRAY);
+        DrawRectangleRec(btn.rect, btnBg);
+        DrawRectangleLinesEx(btn.rect, isCurrent ? 2 : 1, isCurrent ? GREEN : GRAY);
 
         Color textCol = isCurrent ? WHITE : (hovering ? YELLOW : LIGHTGRAY);
-        DrawText(btn.label, drawRect.x + 12, drawRect.y + 7, 16, textCol);
+        DrawText(btn.label, btn.rect.x + 12, btn.rect.y + 7, 16, textCol);
     }
 
     // Bottom close bar
-    Rectangle closeBar = m_monitorFlipBar;
-    closeBar.y = SCREEN_HEIGHT - 45.0f;
-    bool hoveringClose = CheckCollisionPointRec(mousePos, closeBar);
-    DrawRectangleRec(closeBar, hoveringClose ? Color{ 200, 70, 70, 160 } : Color{ 40, 40, 50, 140 });
-    DrawRectangleLinesEx(closeBar, 2, hoveringClose ? RED : GRAY);
-    DrawText("[ SPACE / CLICK ] TO CLOSE CAMERA MONITOR", closeBar.x + 85, closeBar.y + 12, 18, WHITE);
+    bool hoveringClose = CheckCollisionPointRec(mousePos, m_monitorFlipBar);
+    DrawRectangleRec(m_monitorFlipBar, hoveringClose ? Color{ 200, 70, 70, 160 } : Color{ 40, 40, 50, 140 });
+    DrawRectangleLinesEx(m_monitorFlipBar, 2, hoveringClose ? RED : GRAY);
+    DrawText("[ SPACE / HOVER / CLICK ] TO CLOSE CAMERA MONITOR", m_monitorFlipBar.x + 55, m_monitorFlipBar.y + 12, 18, WHITE);
 }
 
 } // namespace FNAF

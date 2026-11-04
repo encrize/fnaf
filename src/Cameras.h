@@ -28,6 +28,8 @@ private:
 
     std::vector<CameraButton> m_mapButtons;
     Rectangle m_monitorFlipBar{};
+    bool m_mouseWasInFlipBar = false;
+    float m_flipCooldown = 0.0f;
 
     // Map texture & Flip frames
     Texture2D m_mapTex{};
