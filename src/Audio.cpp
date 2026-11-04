@@ -28,39 +28,47 @@ void Audio::Initialize() {
     // Try loading custom audio files from disk first, fallback to procedural synthesis
     struct SoundMapping {
         SoundID id;
-        const char* filename;
+        const char* oggPath;
+        const char* wavPath;
     };
 
     const SoundMapping mappings[] = {
-        { SoundID::Ambient, "assets/audio/ambient.wav" },
-        { SoundID::Door, "assets/audio/door.wav" },
-        { SoundID::LightBuzz, "assets/audio/light_buzz.wav" },
-        { SoundID::CameraSwitch, "assets/audio/camera_switch.wav" },
-        { SoundID::CameraFlip, "assets/audio/camera_flip.wav" },
-        { SoundID::Footsteps, "assets/audio/footsteps.wav" },
-        { SoundID::Jumpscare, "assets/audio/jumpscare.wav" },
-        { SoundID::WindowScare, "assets/audio/windowscare.wav" },
-        { SoundID::AnimatronicMove, "assets/audio/animatronic_move.wav" },
-        { SoundID::FoxKnock, "assets/audio/fox_knock.wav" },
-        { SoundID::PowerOut, "assets/audio/power_out.wav" },
-        { SoundID::PowerOutMusic, "assets/audio/power_music.wav" },
-        { SoundID::Kitchen, "assets/audio/kitchen.wav" },
-        { SoundID::Chime6AM, "assets/audio/chime_6am.wav" },
-        { SoundID::Cheer6AM, "assets/audio/cheer.wav" },
-        { SoundID::PirateSong, "assets/audio/pirate_song.wav" },
-        { SoundID::Blip, "assets/audio/blip.wav" },
-        { SoundID::FanHum, "assets/audio/fan.wav" },
-        { SoundID::MenuMusic, "assets/audio/menu_music.wav" },
-        { SoundID::PhoneCall1, "assets/audio/call_night1.wav" },
-        { SoundID::PhoneCall2, "assets/audio/call_night2.wav" },
-        { SoundID::PhoneCall3, "assets/audio/call_night3.wav" },
-        { SoundID::PhoneCall4, "assets/audio/call_night4.wav" },
-        { SoundID::PhoneCall5, "assets/audio/call_night5.wav" }
+        { SoundID::Ambient, "assets/audio/ambient.ogg", "assets/audio/ambient.wav" },
+        { SoundID::Door, "assets/audio/door.ogg", "assets/audio/door.wav" },
+        { SoundID::LightBuzz, "assets/audio/light_buzz.ogg", "assets/audio/light_buzz.wav" },
+        { SoundID::CameraSwitch, "assets/audio/camera_switch.ogg", "assets/audio/camera_switch.wav" },
+        { SoundID::CameraFlip, "assets/audio/camera_flip.ogg", "assets/audio/camera_flip.wav" },
+        { SoundID::Footsteps, "assets/audio/footsteps.ogg", "assets/audio/footsteps.wav" },
+        { SoundID::Jumpscare, "assets/audio/jumpscare.ogg", "assets/audio/jumpscare.wav" },
+        { SoundID::WindowScare, "assets/audio/windowscare.ogg", "assets/audio/windowscare.wav" },
+        { SoundID::AnimatronicMove, "assets/audio/animatronic_move.ogg", "assets/audio/animatronic_move.wav" },
+        { SoundID::FoxKnock, "assets/audio/fox_knock.ogg", "assets/audio/fox_knock.wav" },
+        { SoundID::PowerOut, "assets/audio/power_out.ogg", "assets/audio/power_out.wav" },
+        { SoundID::PowerOutMusic, "assets/audio/power_music.ogg", "assets/audio/power_music.wav" },
+        { SoundID::Kitchen, "assets/audio/kitchen.ogg", "assets/audio/kitchen.wav" },
+        { SoundID::Chime6AM, "assets/audio/chime_6am.ogg", "assets/audio/chime_6am.wav" },
+        { SoundID::Cheer6AM, "assets/audio/cheer.ogg", "assets/audio/cheer.wav" },
+        { SoundID::PirateSong, "assets/audio/pirate_song.ogg", "assets/audio/pirate_song.wav" },
+        { SoundID::Blip, "assets/audio/blip.ogg", "assets/audio/blip.wav" },
+        { SoundID::FanHum, "assets/audio/fan.ogg", "assets/audio/fan.wav" },
+        { SoundID::MenuMusic, "assets/audio/menu_music.ogg", "assets/audio/menu_music.wav" },
+        { SoundID::PhoneCall1, "assets/audio/call_night1.ogg", "assets/audio/call_night1.wav" },
+        { SoundID::PhoneCall2, "assets/audio/call_night2.ogg", "assets/audio/call_night2.wav" },
+        { SoundID::PhoneCall3, "assets/audio/call_night3.ogg", "assets/audio/call_night3.wav" },
+        { SoundID::PhoneCall4, "assets/audio/call_night4.ogg", "assets/audio/call_night4.wav" },
+        { SoundID::PhoneCall5, "assets/audio/call_night5.ogg", "assets/audio/call_night5.wav" }
     };
 
     for (const auto& item : mappings) {
-        if (FileExists(item.filename)) {
-            Sound snd = LoadSound(item.filename);
+        const char* path = nullptr;
+        if (FileExists(item.oggPath)) {
+            path = item.oggPath;
+        } else if (FileExists(item.wavPath)) {
+            path = item.wavPath;
+        }
+
+        if (path) {
+            Sound snd = LoadSound(path);
             if (snd.frameCount > 0) {
                 m_sounds[item.id] = snd;
                 continue;
