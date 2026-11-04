@@ -6,6 +6,7 @@
 namespace FNAF {
 
 class Audio;
+class AssetManager;
 
 class Office {
 private:
@@ -32,9 +33,20 @@ private:
     Rectangle m_rightDoorButton{};
     Rectangle m_rightLightButton{};
 
+    // Textures
+    Texture2D m_officeTex{};
+    Texture2D m_doorTex{};
+    Texture2D m_panelTex{};
+    Texture2D m_fanTex{};
+    Texture2D m_rabbitDoorTex{};
+    Texture2D m_chickenDoorTex{};
+    Texture2D m_goldenBearTex{};
+    Texture2D m_vignetteTex{};
+
 public:
     Office();
 
+    void LoadAssets(AssetManager& assets);
     void Reset();
     void Update(float dt, bool powerDepleted, Audio& audio);
     void HandleInput(bool monitorUp, bool powerDepleted, Audio& audio);

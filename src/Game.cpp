@@ -22,6 +22,10 @@ bool Game::Initialize() {
     m_settings.Apply();
     m_nightManager.Initialize();
 
+    m_office.LoadAssets(m_assets);
+    m_cameras.LoadAssets(m_assets);
+    m_ui.LoadAssets(m_assets);
+
     m_audio.PlayAmbient(true);
 
     return true;

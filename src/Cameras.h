@@ -2,11 +2,13 @@
 
 #include <raylib.h>
 #include <vector>
+#include <unordered_map>
 #include "Common.h"
 
 namespace FNAF {
 
 class Audio;
+class AssetManager;
 
 struct CameraButton {
     CameraID id;
@@ -25,11 +27,14 @@ private:
     std::vector<CameraButton> m_mapButtons;
     Rectangle m_monitorFlipBar{};
 
+    std::unordered_map<CameraID, Texture2D> m_camTextures;
+
     void SetupMapButtons();
 
 public:
     Cameras();
 
+    void LoadAssets(AssetManager& assets);
     void Reset();
     void Update(float dt, bool powerDepleted, Audio& audio);
     void HandleInput(bool powerDepleted, Audio& audio);

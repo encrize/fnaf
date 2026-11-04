@@ -1,5 +1,6 @@
 #include "UI.h"
 #include "Audio.h"
+#include "AssetManager.h"
 #include "Settings.h"
 #include "NightManager.h"
 #include "Power.h"
@@ -10,6 +11,13 @@ namespace FNAF {
 
 UI::UI() {
     Reset();
+}
+
+void UI::LoadAssets(AssetManager& assets) {
+    m_bearPortrait = assets.GetTexture("assets/images/bear_portrait.png");
+    m_rabbitPortrait = assets.GetTexture("assets/images/rabbit_portrait.png");
+    m_chickenPortrait = assets.GetTexture("assets/images/chicken_portrait.png");
+    m_foxPortrait = assets.GetTexture("assets/images/fox_portrait.png");
 }
 
 void UI::Reset() {
@@ -484,9 +492,22 @@ void UI::RenderCustomNightMenu(NightManager& /*nightMgr*/, Audio& /*audio*/) {
         DrawRectangle(cx, cardY, cardW, 260, Color{ 22, 24, 30, 255 });
         DrawRectangleLinesEx(Rectangle{ cx, cardY, cardW, 260 }, 2, cards[i].col);
 
-        // Portrait
-        DrawRectangle(cx + 15, cardY + 15, cardW - 30, 110, cards[i].col);
-        DrawText(cards[i].name, cx + 30, cardY + 55, 24, WHITE);
+        // Portrait Texture or Fallback
+        Texture2D portTex{};
+        if (i == 0) portTex = m_bearPortrait;
+        else if (i == 1) portTex = m_rabbitPortrait;
+        else if (i == 2) portTex = m_chickenPortrait;
+        else if (i == 3) portTex = m_foxPortrait;
+
+        if (portTex.id != 0) {
+            Rectangle src{ 0, 0, (float)portTex.width, (float)portTex.height };
+            Rectangle dst{ cx + 15, cardY + 15, cardW - 30, 110 };
+            DrawTexturePro(portTex, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
+            DrawRectangleLinesEx(dst, 1, cards[i].col);
+        } else {
+            DrawRectangle(cx + 15, cardY + 15, cardW - 30, 110, cards[i].col);
+            DrawText(cards[i].name, cx + 30, cardY + 55, 24, WHITE);
+        }
 
         // Level display
         std::string lvlStr = std::to_string(cards[i].level);

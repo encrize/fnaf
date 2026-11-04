@@ -1,5 +1,6 @@
 #include "Cameras.h"
 #include "Audio.h"
+#include "AssetManager.h"
 #include <raylib.h>
 #include <cmath>
 #include <iostream>
@@ -9,6 +10,17 @@ namespace FNAF {
 Cameras::Cameras() {
     SetupMapButtons();
     Reset();
+}
+
+void Cameras::LoadAssets(AssetManager& assets) {
+    m_camTextures[CameraID::CAM_1A] = assets.GetTexture("assets/images/cam_1a.png");
+    m_camTextures[CameraID::CAM_1B] = assets.GetTexture("assets/images/cam_1b.png");
+    m_camTextures[CameraID::CAM_1C] = assets.GetTexture("assets/images/cam_1c.png");
+    m_camTextures[CameraID::CAM_2A] = assets.GetTexture("assets/images/cam_2a.png");
+    m_camTextures[CameraID::CAM_3]  = assets.GetTexture("assets/images/cam_3.png");
+    m_camTextures[CameraID::CAM_4A] = assets.GetTexture("assets/images/cam_4a.png");
+    m_camTextures[CameraID::CAM_5]  = assets.GetTexture("assets/images/cam_5.png");
+    m_camTextures[CameraID::CAM_7]  = assets.GetTexture("assets/images/cam_7.png");
 }
 
 void Cameras::Reset() {
@@ -155,15 +167,20 @@ void Cameras::Render(float /*officeCameraX*/,
         DrawCircle(SCREEN_WIDTH / 2, monitorY + 390, 25 + pulse, Color{ 100, 100, 120, 100 });
         DrawCircle(SCREEN_WIDTH / 2, monitorY + 390, 12, Color{ 220, 220, 240, 255 });
     } else {
-        // Render stylized room environment
+        // Render stylized room environment or loaded texture background
         float rw = SCREEN_WIDTH;
         float rh = SCREEN_HEIGHT;
 
-        // Base room walls & floor
-        DrawRectangle(0, monitorY, rw, rh * 0.65f, Color{ 24, 26, 32, 255 });
-        DrawRectangle(0, monitorY + rh * 0.65f, rw, rh * 0.35f, Color{ 15, 16, 20, 255 });
+        auto it = m_camTextures.find(m_currentCam);
+        if (it != m_camTextures.end() && it->second.id != 0) {
+            DrawTexture(it->second, 0, monitorY, WHITE);
+        } else {
+            // Base room walls & floor fallback
+            DrawRectangle(0, monitorY, rw, rh * 0.65f, Color{ 24, 26, 32, 255 });
+            DrawRectangle(0, monitorY + rh * 0.65f, rw, rh * 0.35f, Color{ 15, 16, 20, 255 });
+        }
 
-        // Room specific geometry
+        // Room specific geometry and animatronics
         switch (m_currentCam) {
             case CameraID::CAM_1A: { // Show Stage
                 // Star backdrop & wooden stage

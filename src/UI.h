@@ -7,6 +7,7 @@
 namespace FNAF {
 
 class Audio;
+class AssetManager;
 class Settings;
 class NightManager;
 class Power;
@@ -21,9 +22,15 @@ private:
     int m_customChicken = 0;
     int m_customFox = 0;
 
+    Texture2D m_bearPortrait{};
+    Texture2D m_rabbitPortrait{};
+    Texture2D m_chickenPortrait{};
+    Texture2D m_foxPortrait{};
+
 public:
     UI();
 
+    void LoadAssets(AssetManager& assets);
     void Reset();
 
     // Render methods
