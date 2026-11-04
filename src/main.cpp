@@ -1,7 +1,8 @@
 #include "Game.h"
 #include <iostream>
+#include <string>
 
-int main() {
+int main(int argc, char* argv[]) {
     std::cout << "[FNAF-CPP] Starting Five Nights at Freddy's...\n";
 
     FNAF::Game game;
@@ -10,7 +11,11 @@ int main() {
         return 1;
     }
 
-    game.Run();
+    if (argc > 1 && (std::string(argv[1]) == "--measure" || std::string(argv[1]) == "-m")) {
+        game.RunMeasurement();
+    } else {
+        game.Run();
+    }
 
     std::cout << "[FNAF-CPP] Game exited normally. Goodbye!\n";
     return 0;

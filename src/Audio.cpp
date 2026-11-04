@@ -30,33 +30,35 @@ void Audio::Initialize() {
         SoundID id;
         const char* oggPath;
         const char* wavPath;
+        bool isMusicStream;
+        bool looping;
     };
 
     const SoundMapping mappings[] = {
-        { SoundID::Ambient, "assets/audio/ambient.ogg", "assets/audio/ambient.wav" },
-        { SoundID::Door, "assets/audio/door.ogg", "assets/audio/door.wav" },
-        { SoundID::LightBuzz, "assets/audio/light_buzz.ogg", "assets/audio/light_buzz.wav" },
-        { SoundID::CameraSwitch, "assets/audio/camera_switch.ogg", "assets/audio/camera_switch.wav" },
-        { SoundID::CameraFlip, "assets/audio/camera_flip.ogg", "assets/audio/camera_flip.wav" },
-        { SoundID::Footsteps, "assets/audio/footsteps.ogg", "assets/audio/footsteps.wav" },
-        { SoundID::Jumpscare, "assets/audio/jumpscare.ogg", "assets/audio/jumpscare.wav" },
-        { SoundID::WindowScare, "assets/audio/windowscare.ogg", "assets/audio/windowscare.wav" },
-        { SoundID::AnimatronicMove, "assets/audio/animatronic_move.ogg", "assets/audio/animatronic_move.wav" },
-        { SoundID::FoxKnock, "assets/audio/fox_knock.ogg", "assets/audio/fox_knock.wav" },
-        { SoundID::PowerOut, "assets/audio/power_out.ogg", "assets/audio/power_out.wav" },
-        { SoundID::PowerOutMusic, "assets/audio/power_music.ogg", "assets/audio/power_music.wav" },
-        { SoundID::Kitchen, "assets/audio/kitchen.ogg", "assets/audio/kitchen.wav" },
-        { SoundID::Chime6AM, "assets/audio/chime_6am.ogg", "assets/audio/chime_6am.wav" },
-        { SoundID::Cheer6AM, "assets/audio/cheer.ogg", "assets/audio/cheer.wav" },
-        { SoundID::PirateSong, "assets/audio/pirate_song.ogg", "assets/audio/pirate_song.wav" },
-        { SoundID::Blip, "assets/audio/blip.ogg", "assets/audio/blip.wav" },
-        { SoundID::FanHum, "assets/audio/fan.ogg", "assets/audio/fan.wav" },
-        { SoundID::MenuMusic, "assets/audio/menu_music.ogg", "assets/audio/menu_music.wav" },
-        { SoundID::PhoneCall1, "assets/audio/call_night1.ogg", "assets/audio/call_night1.wav" },
-        { SoundID::PhoneCall2, "assets/audio/call_night2.ogg", "assets/audio/call_night2.wav" },
-        { SoundID::PhoneCall3, "assets/audio/call_night3.ogg", "assets/audio/call_night3.wav" },
-        { SoundID::PhoneCall4, "assets/audio/call_night4.ogg", "assets/audio/call_night4.wav" },
-        { SoundID::PhoneCall5, "assets/audio/call_night5.ogg", "assets/audio/call_night5.wav" }
+        { SoundID::Ambient, "assets/audio/ambient.ogg", "assets/audio/ambient.wav", true, true },
+        { SoundID::Door, "assets/audio/door.ogg", "assets/audio/door.wav", false, false },
+        { SoundID::LightBuzz, "assets/audio/light_buzz.ogg", "assets/audio/light_buzz.wav", false, false },
+        { SoundID::CameraSwitch, "assets/audio/camera_switch.ogg", "assets/audio/camera_switch.wav", false, false },
+        { SoundID::CameraFlip, "assets/audio/camera_flip.ogg", "assets/audio/camera_flip.wav", false, false },
+        { SoundID::Footsteps, "assets/audio/footsteps.ogg", "assets/audio/footsteps.wav", false, false },
+        { SoundID::Jumpscare, "assets/audio/jumpscare.ogg", "assets/audio/jumpscare.wav", false, false },
+        { SoundID::WindowScare, "assets/audio/windowscare.ogg", "assets/audio/windowscare.wav", false, false },
+        { SoundID::AnimatronicMove, "assets/audio/animatronic_move.ogg", "assets/audio/animatronic_move.wav", false, false },
+        { SoundID::FoxKnock, "assets/audio/fox_knock.ogg", "assets/audio/fox_knock.wav", false, false },
+        { SoundID::PowerOut, "assets/audio/power_out.ogg", "assets/audio/power_out.wav", false, false },
+        { SoundID::PowerOutMusic, "assets/audio/power_music.ogg", "assets/audio/power_music.wav", true, true },
+        { SoundID::Kitchen, "assets/audio/kitchen.ogg", "assets/audio/kitchen.wav", false, false },
+        { SoundID::Chime6AM, "assets/audio/chime_6am.ogg", "assets/audio/chime_6am.wav", false, false },
+        { SoundID::Cheer6AM, "assets/audio/cheer.ogg", "assets/audio/cheer.wav", false, false },
+        { SoundID::PirateSong, "assets/audio/pirate_song.ogg", "assets/audio/pirate_song.wav", false, false },
+        { SoundID::Blip, "assets/audio/blip.ogg", "assets/audio/blip.wav", false, false },
+        { SoundID::FanHum, "assets/audio/fan.ogg", "assets/audio/fan.wav", true, true },
+        { SoundID::MenuMusic, "assets/audio/menu_music.ogg", "assets/audio/menu_music.wav", true, true },
+        { SoundID::PhoneCall1, "assets/audio/call_night1.ogg", "assets/audio/call_night1.wav", true, false },
+        { SoundID::PhoneCall2, "assets/audio/call_night2.ogg", "assets/audio/call_night2.wav", true, false },
+        { SoundID::PhoneCall3, "assets/audio/call_night3.ogg", "assets/audio/call_night3.wav", true, false },
+        { SoundID::PhoneCall4, "assets/audio/call_night4.ogg", "assets/audio/call_night4.wav", true, false },
+        { SoundID::PhoneCall5, "assets/audio/call_night5.ogg", "assets/audio/call_night5.wav", true, false }
     };
 
     for (const auto& item : mappings) {
@@ -68,10 +70,19 @@ void Audio::Initialize() {
         }
 
         if (path) {
-            Sound snd = LoadSound(path);
-            if (snd.frameCount > 0) {
-                m_sounds[item.id] = snd;
-                continue;
+            if (item.isMusicStream) {
+                Music mus = LoadMusicStream(path);
+                if (mus.ctxData != nullptr) {
+                    mus.looping = item.looping;
+                    m_music[item.id] = mus;
+                    continue;
+                }
+            } else {
+                Sound snd = LoadSound(path);
+                if (snd.frameCount > 0) {
+                    m_sounds[item.id] = snd;
+                    continue;
+                }
             }
         }
         // Procedural synthesis fallback
@@ -278,10 +289,33 @@ void Audio::SetMasterVolume(float vol) {
 
 void Audio::SetSFXVolume(float vol) {
     m_sfxVolume = vol;
+    auto itFan = m_music.find(SoundID::FanHum);
+    if (itFan != m_music.end() && itFan->second.ctxData != nullptr) {
+        ::SetMusicVolume(itFan->second, m_sfxVolume * 0.25f);
+    }
 }
 
 void Audio::SetMusicVolume(float vol) {
     m_musicVolume = vol;
+    auto itAmb = m_music.find(SoundID::Ambient);
+    if (itAmb != m_music.end() && itAmb->second.ctxData != nullptr) {
+        ::SetMusicVolume(itAmb->second, m_musicVolume * 0.35f);
+    }
+    auto itMenu = m_music.find(SoundID::MenuMusic);
+    if (itMenu != m_music.end() && itMenu->second.ctxData != nullptr) {
+        ::SetMusicVolume(itMenu->second, m_musicVolume * 0.45f);
+    }
+    auto itPwr = m_music.find(SoundID::PowerOutMusic);
+    if (itPwr != m_music.end() && itPwr->second.ctxData != nullptr) {
+        ::SetMusicVolume(itPwr->second, m_musicVolume * 0.6f);
+    }
+    SoundID calls[] = { SoundID::PhoneCall1, SoundID::PhoneCall2, SoundID::PhoneCall3, SoundID::PhoneCall4, SoundID::PhoneCall5 };
+    for (SoundID cid : calls) {
+        auto itCall = m_music.find(cid);
+        if (itCall != m_music.end() && itCall->second.ctxData != nullptr) {
+            ::SetMusicVolume(itCall->second, m_musicVolume * 0.85f);
+        }
+    }
 }
 
 void Audio::PlaySoundEffect(SoundID id, float volumeMultiplier, float pitch, float pan) {
@@ -325,30 +359,62 @@ void Audio::PlayJumpscare() {
 
 void Audio::PlayAmbient(bool active) {
     if (!m_initialized) return;
-    auto it = m_sounds.find(SoundID::Ambient);
-    if (it == m_sounds.end() || it->second.frameCount == 0) return;
+
+    // Check for streaming music first
+    auto itM = m_music.find(SoundID::Ambient);
+    if (itM != m_music.end() && itM->second.ctxData != nullptr) {
+        if (active && !m_ambientPlaying) {
+            ::SetMusicVolume(itM->second, m_musicVolume * 0.35f);
+            PlayMusicStream(itM->second);
+            m_ambientPlaying = true;
+        } else if (!active && m_ambientPlaying) {
+            StopMusicStream(itM->second);
+            m_ambientPlaying = false;
+        }
+        return;
+    }
+
+    // Fallback to sound
+    auto itS = m_sounds.find(SoundID::Ambient);
+    if (itS == m_sounds.end() || itS->second.frameCount == 0) return;
 
     if (active && !m_ambientPlaying) {
-        SetSoundVolume(it->second, m_musicVolume * 0.35f);
-        PlaySound(it->second);
+        SetSoundVolume(itS->second, m_musicVolume * 0.35f);
+        PlaySound(itS->second);
         m_ambientPlaying = true;
     } else if (!active && m_ambientPlaying) {
-        StopSound(it->second);
+        StopSound(itS->second);
         m_ambientPlaying = false;
     }
 }
 
 void Audio::PlayFanHum(bool active) {
     if (!m_initialized) return;
-    auto it = m_sounds.find(SoundID::FanHum);
-    if (it == m_sounds.end() || it->second.frameCount == 0) return;
+
+    // Check for streaming music first
+    auto itM = m_music.find(SoundID::FanHum);
+    if (itM != m_music.end() && itM->second.ctxData != nullptr) {
+        if (active && !m_fanPlaying) {
+            ::SetMusicVolume(itM->second, m_sfxVolume * 0.25f);
+            PlayMusicStream(itM->second);
+            m_fanPlaying = true;
+        } else if (!active && m_fanPlaying) {
+            StopMusicStream(itM->second);
+            m_fanPlaying = false;
+        }
+        return;
+    }
+
+    // Fallback to sound
+    auto itS = m_sounds.find(SoundID::FanHum);
+    if (itS == m_sounds.end() || itS->second.frameCount == 0) return;
 
     if (active && !m_fanPlaying) {
-        SetSoundVolume(it->second, m_sfxVolume * 0.25f);
-        PlaySound(it->second);
+        SetSoundVolume(itS->second, m_sfxVolume * 0.25f);
+        PlaySound(itS->second);
         m_fanPlaying = true;
     } else if (!active && m_fanPlaying) {
-        StopSound(it->second);
+        StopSound(itS->second);
         m_fanPlaying = false;
     }
 }
@@ -367,14 +433,26 @@ void Audio::PlayWindowScare() {
 
 void Audio::PlayMenuMusic(bool active) {
     if (!m_initialized) return;
-    auto it = m_sounds.find(SoundID::MenuMusic);
-    if (it == m_sounds.end() || it->second.frameCount == 0) return;
 
-    if (active && !IsSoundPlaying(it->second)) {
-        SetSoundVolume(it->second, m_musicVolume * 0.45f);
-        PlaySound(it->second);
-    } else if (!active && IsSoundPlaying(it->second)) {
-        StopSound(it->second);
+    auto itM = m_music.find(SoundID::MenuMusic);
+    if (itM != m_music.end() && itM->second.ctxData != nullptr) {
+        if (active && !IsMusicStreamPlaying(itM->second)) {
+            ::SetMusicVolume(itM->second, m_musicVolume * 0.45f);
+            PlayMusicStream(itM->second);
+        } else if (!active && IsMusicStreamPlaying(itM->second)) {
+            StopMusicStream(itM->second);
+        }
+        return;
+    }
+
+    auto itS = m_sounds.find(SoundID::MenuMusic);
+    if (itS == m_sounds.end() || itS->second.frameCount == 0) return;
+
+    if (active && !IsSoundPlaying(itS->second)) {
+        SetSoundVolume(itS->second, m_musicVolume * 0.45f);
+        PlaySound(itS->second);
+    } else if (!active && IsSoundPlaying(itS->second)) {
+        StopSound(itS->second);
     }
 }
 
@@ -386,6 +464,13 @@ void Audio::PlayPhoneCall(int night) {
     else if (night == 4) callID = SoundID::PhoneCall4;
     else if (night >= 5) callID = SoundID::PhoneCall5;
 
+    auto itM = m_music.find(callID);
+    if (itM != m_music.end() && itM->second.ctxData != nullptr) {
+        ::SetMusicVolume(itM->second, m_musicVolume * 0.85f);
+        PlayMusicStream(itM->second);
+        return;
+    }
+
     PlaySoundEffect(callID, 0.85f, 1.0f);
 }
 
@@ -393,9 +478,13 @@ void Audio::StopPhoneCall() {
     if (!m_initialized) return;
     SoundID calls[] = { SoundID::PhoneCall1, SoundID::PhoneCall2, SoundID::PhoneCall3, SoundID::PhoneCall4, SoundID::PhoneCall5 };
     for (SoundID cid : calls) {
-        auto it = m_sounds.find(cid);
-        if (it != m_sounds.end() && it->second.frameCount > 0) {
-            StopSound(it->second);
+        auto itM = m_music.find(cid);
+        if (itM != m_music.end() && itM->second.ctxData != nullptr) {
+            StopMusicStream(itM->second);
+        }
+        auto itS = m_sounds.find(cid);
+        if (itS != m_sounds.end() && itS->second.frameCount > 0) {
+            StopSound(itS->second);
         }
     }
 }
@@ -414,14 +503,26 @@ void Audio::PlayPowerOut() {
 
 void Audio::PlayPowerOutMusic(bool active) {
     if (!m_initialized) return;
-    auto it = m_sounds.find(SoundID::PowerOutMusic);
-    if (it == m_sounds.end() || it->second.frameCount == 0) return;
+
+    auto itM = m_music.find(SoundID::PowerOutMusic);
+    if (itM != m_music.end() && itM->second.ctxData != nullptr) {
+        if (active) {
+            ::SetMusicVolume(itM->second, m_musicVolume * 0.6f);
+            PlayMusicStream(itM->second);
+        } else {
+            StopMusicStream(itM->second);
+        }
+        return;
+    }
+
+    auto itS = m_sounds.find(SoundID::PowerOutMusic);
+    if (itS == m_sounds.end() || itS->second.frameCount == 0) return;
 
     if (active) {
-        SetSoundVolume(it->second, m_musicVolume * 0.6f);
-        PlaySound(it->second);
+        SetSoundVolume(itS->second, m_musicVolume * 0.6f);
+        PlaySound(itS->second);
     } else {
-        StopSound(it->second);
+        StopSound(itS->second);
     }
 }
 
@@ -452,6 +553,11 @@ void Audio::StopAllSounds() {
             StopSound(pair.second);
         }
     }
+    for (auto& pair : m_music) {
+        if (pair.second.ctxData != nullptr) {
+            StopMusicStream(pair.second);
+        }
+    }
     m_fanPlaying = false;
     m_ambientPlaying = false;
     m_lightBuzzPlaying = false;
@@ -459,23 +565,31 @@ void Audio::StopAllSounds() {
 
 void Audio::Update() {
     if (!m_initialized) return;
-    // Loop ambient and fan hum if active
+
+    // Update streaming music buffers
+    for (auto& pair : m_music) {
+        if (pair.second.ctxData != nullptr && IsMusicStreamPlaying(pair.second)) {
+            UpdateMusicStream(pair.second);
+        }
+    }
+
+    // Loop procedural/sound fallbacks if active
     if (m_ambientPlaying) {
-        auto it = m_sounds.find(SoundID::Ambient);
-        if (it != m_sounds.end() && !IsSoundPlaying(it->second)) {
-            PlaySound(it->second);
+        auto itS = m_sounds.find(SoundID::Ambient);
+        if (itS != m_sounds.end() && !IsSoundPlaying(itS->second)) {
+            PlaySound(itS->second);
         }
     }
     if (m_fanPlaying) {
-        auto it = m_sounds.find(SoundID::FanHum);
-        if (it != m_sounds.end() && !IsSoundPlaying(it->second)) {
-            PlaySound(it->second);
+        auto itS = m_sounds.find(SoundID::FanHum);
+        if (itS != m_sounds.end() && !IsSoundPlaying(itS->second)) {
+            PlaySound(itS->second);
         }
     }
     if (m_lightBuzzPlaying) {
-        auto it = m_sounds.find(SoundID::LightBuzz);
-        if (it != m_sounds.end() && !IsSoundPlaying(it->second)) {
-            PlaySound(it->second);
+        auto itS = m_sounds.find(SoundID::LightBuzz);
+        if (itS != m_sounds.end() && !IsSoundPlaying(itS->second)) {
+            PlaySound(itS->second);
         }
     }
 }
@@ -491,6 +605,13 @@ void Audio::Cleanup() {
         }
     }
     m_sounds.clear();
+
+    for (auto& pair : m_music) {
+        if (pair.second.ctxData != nullptr) {
+            UnloadMusicStream(pair.second);
+        }
+    }
+    m_music.clear();
 
     if (IsAudioDeviceReady()) {
         CloseAudioDevice();

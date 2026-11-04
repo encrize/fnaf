@@ -13,7 +13,128 @@ Cameras::Cameras() {
     Reset();
 }
 
+Cameras::~Cameras() {
+    ClearCameraCache();
+}
+
+void Cameras::ClearCameraCache() {
+    for (auto& entry : m_camCache) {
+        if (m_assets) {
+            m_assets->UnloadTextureByPath(entry.path);
+        } else if (entry.texture.id != 0) {
+            UnloadTexture(entry.texture);
+        }
+    }
+    m_camCache.clear();
+}
+
+Texture2D Cameras::GetCachedCameraTexture(const std::string& path) const {
+    if (path.empty()) return Texture2D{};
+
+    m_cacheClock++;
+    for (auto& entry : m_camCache) {
+        if (entry.path == path) {
+            entry.lastAccess = m_cacheClock;
+            return entry.texture;
+        }
+    }
+
+    if (!FileExists(path.c_str())) {
+        return Texture2D{};
+    }
+
+    // If cache reached capacity, evict the least recently used texture
+    if (m_camCache.size() >= CAMERA_CACHE_CAPACITY) {
+        size_t lruIdx = 0;
+        uint32_t oldest = m_camCache[0].lastAccess;
+        for (size_t i = 1; i < m_camCache.size(); ++i) {
+            if (m_camCache[i].lastAccess < oldest) {
+                oldest = m_camCache[i].lastAccess;
+                lruIdx = i;
+            }
+        }
+        if (m_assets) {
+            m_assets->UnloadTextureByPath(m_camCache[lruIdx].path);
+        } else if (m_camCache[lruIdx].texture.id != 0) {
+            UnloadTexture(m_camCache[lruIdx].texture);
+        }
+        m_camCache.erase(m_camCache.begin() + lruIdx);
+    }
+
+    Texture2D tex{};
+    if (m_assets) {
+        tex = m_assets->GetTexture(path);
+    } else {
+        Image img = LoadImage(path.c_str());
+        if (img.data == nullptr) return Texture2D{};
+        if (img.format != PIXELFORMAT_UNCOMPRESSED_GRAYSCALE) {
+            ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_GRAYSCALE);
+        }
+        tex = LoadTextureFromImage(img);
+        SetTextureFilter(tex, TEXTURE_FILTER_BILINEAR);
+        UnloadImage(img);
+    }
+
+    m_camCache.push_back({ path, tex, m_cacheClock });
+    return tex;
+}
+
+std::string Cameras::DetermineCameraFeedPath(LocationID bearLoc, LocationID rabbitLoc, LocationID chickenLoc, FoxState foxState) const {
+    switch (m_currentCam) {
+        case CameraID::CAM_1A: // Show Stage
+            if (bearLoc != LocationID::ShowStage) return "assets/images/cams/Stage/484.png";
+            if (chickenLoc != LocationID::ShowStage && rabbitLoc != LocationID::ShowStage) return "assets/images/cams/Stage/224.png";
+            if (rabbitLoc != LocationID::ShowStage) return "assets/images/cams/Stage/68.png";
+            return "assets/images/cams/Stage/19.png";
+
+        case CameraID::CAM_1B: // Dining Area
+            if (bearLoc == LocationID::DiningArea) return "assets/images/cams/Dining/215.png";
+            if (chickenLoc == LocationID::DiningArea) return "assets/images/cams/Dining/120.png";
+            if (rabbitLoc == LocationID::DiningArea) return "assets/images/cams/Dining/90.png";
+            return "assets/images/cams/Dining/48.png";
+
+        case CameraID::CAM_1C: // Pirate Cove
+            if (foxState == FoxState::Hidden) return "assets/images/cams/Cove/66.png";
+            if (foxState == FoxState::Watching) return "assets/images/cams/Cove/211.png";
+            return "assets/images/cams/Cove/240.png";
+
+        case CameraID::CAM_2A: // West Hall
+            if (rabbitLoc == LocationID::WestHall) return "assets/images/cams/WestHall/206.png";
+            return "assets/images/cams/WestHall/336.png";
+
+        case CameraID::CAM_2B: // West Hall Corner
+            if (rabbitLoc == LocationID::WestHallCorner) return "assets/images/cams/WestHall/188.png";
+            return "assets/images/cams/WestHall/549.png";
+
+        case CameraID::CAM_3: // Supply Closet
+            if (rabbitLoc == LocationID::SupplyCloset) return "assets/images/cams/Closet/190.png";
+            return "assets/images/cams/Closet/62.png";
+
+        case CameraID::CAM_4A: // East Hall
+            if (chickenLoc == LocationID::EastHall) return "assets/images/cams/EastHall/221.png";
+            return "assets/images/cams/EastHall/67.png";
+
+        case CameraID::CAM_4B: // East Hall Corner
+            if (bearLoc == LocationID::EastHallCorner) return "assets/images/cams/EastHall/486.png";
+            if (chickenLoc == LocationID::EastHallCorner) return "assets/images/cams/EastHall/451.png";
+            return "assets/images/cams/EastHall/571.png";
+
+        case CameraID::CAM_5: // Backstage
+            if (rabbitLoc == LocationID::Backstage) return "assets/images/cams/Backstage/205.png";
+            return "assets/images/cams/Backstage/354.png";
+
+        case CameraID::CAM_7: // Restroom
+            if (bearLoc == LocationID::Restrooms) return "assets/images/cams/Restroom/219.png";
+            if (chickenLoc == LocationID::Restrooms) return "assets/images/cams/Restroom/217.png";
+            return "assets/images/cams/Restroom/41.png";
+
+        default:
+            return "";
+    }
+}
+
 void Cameras::LoadAssets(AssetManager& assets) {
+    m_assets = &assets;
     m_mapTex = assets.GetTexture("assets/images/cams/map.png");
 
     m_flipFrames.clear();
@@ -26,52 +147,6 @@ void Cameras::LoadAssets(AssetManager& assets) {
     for (const char* g : glitches) {
         m_glitchFrames.push_back(assets.GetTexture(std::string("assets/images/cams/Glitch/") + g));
     }
-
-    // Stage
-    m_stageAll = assets.GetTexture("assets/images/cams/Stage/19.png");
-    m_stageBonnieGone = assets.GetTexture("assets/images/cams/Stage/68.png");
-    m_stageChicaGone = assets.GetTexture("assets/images/cams/Stage/224.png");
-    m_stageEmpty = assets.GetTexture("assets/images/cams/Stage/484.png");
-
-    // Dining
-    m_diningEmpty = assets.GetTexture("assets/images/cams/Dining/48.png");
-    m_diningBonnie = assets.GetTexture("assets/images/cams/Dining/90.png");
-    m_diningChica = assets.GetTexture("assets/images/cams/Dining/120.png");
-    m_diningFreddy = assets.GetTexture("assets/images/cams/Dining/215.png");
-
-    // Cove
-    m_coveClosed = assets.GetTexture("assets/images/cams/Cove/66.png");
-    m_covePeeking = assets.GetTexture("assets/images/cams/Cove/211.png");
-    m_coveOpen = assets.GetTexture("assets/images/cams/Cove/240.png");
-
-    // West Hall & Corner
-    m_westHallEmpty = assets.GetTexture("assets/images/cams/WestHall/336.png");
-    m_westHallBonnie = assets.GetTexture("assets/images/cams/WestHall/206.png");
-    m_westCornerEmpty = assets.GetTexture("assets/images/cams/WestHall/549.png");
-    m_westCornerBonnie = assets.GetTexture("assets/images/cams/WestHall/188.png");
-
-    // Closet
-    m_closetEmpty = assets.GetTexture("assets/images/cams/Closet/62.png");
-    m_closetBonnie = assets.GetTexture("assets/images/cams/Closet/190.png");
-
-    // East Hall & Corner
-    m_eastHallEmpty = assets.GetTexture("assets/images/cams/EastHall/67.png");
-    m_eastHallChica = assets.GetTexture("assets/images/cams/EastHall/221.png");
-    m_eastCornerEmpty = assets.GetTexture("assets/images/cams/EastHall/571.png");
-    m_eastCornerChica = assets.GetTexture("assets/images/cams/EastHall/451.png");
-    m_eastCornerFreddy = assets.GetTexture("assets/images/cams/EastHall/486.png");
-
-    // Backstage
-    m_backstageEmpty = assets.GetTexture("assets/images/cams/Backstage/354.png");
-    m_backstageBonnie = assets.GetTexture("assets/images/cams/Backstage/205.png");
-
-    // Restroom
-    m_restroomEmpty = assets.GetTexture("assets/images/cams/Restroom/41.png");
-    m_restroomChica = assets.GetTexture("assets/images/cams/Restroom/217.png");
-    m_restroomFreddy = assets.GetTexture("assets/images/cams/Restroom/219.png");
-
-    // Kitchen
-    m_kitchenTex = assets.GetTexture("assets/images/cams/Kitchen/kitchen.png");
 }
 
 void Cameras::Reset() {
@@ -209,8 +284,6 @@ void Cameras::Render(float /*officeCameraX*/,
     float monitorY = (1.0f - m_monitorProgress) * SCREEN_HEIGHT;
 
     // 1. Select Camera Background Texture based on animatronic state
-    Texture2D camBg{};
-
     if (m_currentCam == CameraID::CAM_6) {
         // Kitchen: Audio Only
         DrawRectangle(0, monitorY, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
@@ -220,81 +293,20 @@ void Cameras::Render(float /*officeCameraX*/,
         DrawCircle(SCREEN_WIDTH / 2, monitorY + 390, 25 + pulse, Color{ 100, 100, 120, 100 });
         DrawCircle(SCREEN_WIDTH / 2, monitorY + 390, 12, Color{ 220, 220, 240, 255 });
     } else {
-        switch (m_currentCam) {
-            case CameraID::CAM_1A: // Show Stage
-                if (bearLoc != LocationID::ShowStage) {
-                    camBg = m_stageEmpty;
-                } else if (chickenLoc != LocationID::ShowStage && rabbitLoc != LocationID::ShowStage) {
-                    camBg = m_stageChicaGone; // Only Freddy remains
-                } else if (rabbitLoc != LocationID::ShowStage) {
-                    camBg = m_stageBonnieGone; // Freddy and Chica remain
-                } else {
-                    camBg = m_stageAll; // All 3 on stage
-                }
-                break;
-
-            case CameraID::CAM_1B: // Dining Area
-                if (bearLoc == LocationID::DiningArea) camBg = m_diningFreddy;
-                else if (chickenLoc == LocationID::DiningArea) camBg = m_diningChica;
-                else if (rabbitLoc == LocationID::DiningArea) camBg = m_diningBonnie;
-                else camBg = m_diningEmpty;
-                break;
-
-            case CameraID::CAM_1C: // Pirate Cove
-                if (foxState == FoxState::Hidden) camBg = m_coveClosed;
-                else if (foxState == FoxState::Watching) camBg = m_covePeeking;
-                else camBg = m_coveOpen;
-                break;
-
-            case CameraID::CAM_2A: // West Hall
-                if (rabbitLoc == LocationID::WestHall) camBg = m_westHallBonnie;
-                else camBg = m_westHallEmpty;
-                break;
-
-            case CameraID::CAM_2B: // West Hall Corner
-                if (rabbitLoc == LocationID::WestHallCorner) camBg = m_westCornerBonnie;
-                else camBg = m_westCornerEmpty;
-                break;
-
-            case CameraID::CAM_3: // Supply Closet
-                if (rabbitLoc == LocationID::SupplyCloset) camBg = m_closetBonnie;
-                else camBg = m_closetEmpty;
-                break;
-
-            case CameraID::CAM_4A: // East Hall
-                if (chickenLoc == LocationID::EastHall) camBg = m_eastHallChica;
-                else camBg = m_eastHallEmpty;
-                break;
-
-            case CameraID::CAM_4B: // East Hall Corner
-                if (bearLoc == LocationID::EastHallCorner) camBg = m_eastCornerFreddy;
-                else if (chickenLoc == LocationID::EastHallCorner) camBg = m_eastCornerChica;
-                else camBg = m_eastCornerEmpty;
-                break;
-
-            case CameraID::CAM_5: // Backstage
-                if (rabbitLoc == LocationID::Backstage) camBg = m_backstageBonnie;
-                else camBg = m_backstageEmpty;
-                break;
-
-            case CameraID::CAM_7: // Restroom
-                if (bearLoc == LocationID::Restrooms) camBg = m_restroomFreddy;
-                else if (chickenLoc == LocationID::Restrooms) camBg = m_restroomChica;
-                else camBg = m_restroomEmpty;
-                break;
-
-            default:
-                break;
-        }
+        std::string feedPath = DetermineCameraFeedPath(bearLoc, rabbitLoc, chickenLoc, foxState);
+        Texture2D camBg = feedPath.empty() ? Texture2D{} : GetCachedCameraTexture(feedPath);
 
         if (camBg.id != 0) {
             float panT = (std::sin(m_camSweepTimer) + 1.0f) * 0.5f;
-            float maxPan = std::max(0.0f, static_cast<float>(camBg.width) - static_cast<float>(SCREEN_WIDTH));
+            float viewRatio = (camBg.width > SCREEN_WIDTH) ? (static_cast<float>(SCREEN_WIDTH) / static_cast<float>(camBg.width)) : 0.8f;
+            float viewWidth = static_cast<float>(camBg.width) * viewRatio;
+            float maxPan = std::max(0.0f, static_cast<float>(camBg.width) - viewWidth);
             float camPan = panT * maxPan;
 
-            Rectangle src{ camPan, 0.0f, static_cast<float>(SCREEN_WIDTH), static_cast<float>(camBg.height) };
+            Rectangle src{ camPan, 0.0f, viewWidth, static_cast<float>(camBg.height) };
             Rectangle dst{ 0.0f, monitorY, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) };
-            DrawTexturePro(camBg, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
+            // Bilinear upscaled 8-bit grayscale with authentic cold surveillance tint
+            DrawTexturePro(camBg, src, dst, Vector2{ 0, 0 }, 0.0f, Color{ 215, 230, 240, 255 });
         } else {
             DrawRectangle(0, monitorY, SCREEN_WIDTH, SCREEN_HEIGHT, Color{ 20, 22, 28, 255 });
         }

@@ -14,6 +14,7 @@ UI::UI() {
 }
 
 void UI::LoadAssets(AssetManager& assets) {
+    m_assets = &assets;
     m_bearPortrait    = assets.GetTexture("assets/images/custom_night/527.png");
     m_rabbitPortrait  = assets.GetTexture("assets/images/custom_night/528.png");
     m_chickenPortrait = assets.GetTexture("assets/images/custom_night/529.png");
@@ -32,48 +33,6 @@ void UI::LoadAssets(AssetManager& assets) {
         m_menuFreddyFrames.push_back(assets.GetTexture(std::string("assets/images/menu/") + mf));
     }
 
-    // Bonnie Jumpscare Frames
-    m_jumpscareBonnie.clear();
-    const char* bJumps[] = {
-        "291.png", "293.png", "294.png", "295.png", "296.png",
-        "297.png", "298.png", "299.png", "300.png", "301.png", "303.png"
-    };
-    for (const char* bf : bJumps) {
-        m_jumpscareBonnie.push_back(assets.GetTexture(std::string("assets/images/jumpscares/Bonnie/") + bf));
-    }
-
-    // Chica Jumpscare Frames
-    m_jumpscareChica.clear();
-    const char* cJumps[] = {
-        "65.png", "69.png", "228.png", "229.png", "230.png", "231.png",
-        "232.png", "233.png", "234.png", "235.png", "236.png", "237.png", "279.png", "281.png"
-    };
-    for (const char* cf : cJumps) {
-        m_jumpscareChica.push_back(assets.GetTexture(std::string("assets/images/jumpscares/Chica/") + cf));
-    }
-
-    // Foxy Jumpscare Frames
-    m_jumpscareFoxy.clear();
-    const char* fJumps[] = {
-        "242.png", "243.png", "396.png", "397.png", "398.png", "399.png", "400.png",
-        "401.png", "402.png", "403.png", "404.png", "405.png", "406.png", "407.png",
-        "408.png", "409.png", "410.png", "411.png", "412.png"
-    };
-    for (const char* ff : fJumps) {
-        m_jumpscareFoxy.push_back(assets.GetTexture(std::string("assets/images/jumpscares/Foxy/Jumpscare/") + ff));
-    }
-
-    // Freddy Jumpscare Frames
-    m_jumpscareFreddy.clear();
-    const char* frJumps[] = {
-        "307.png", "308.png", "309.png", "310.png", "311.png", "312.png", "313.png",
-        "314.png", "315.png", "316.png", "317.png", "318.png", "319.png", "320.png",
-        "321.png", "322.png", "323.png", "324.png", "325.png"
-    };
-    for (const char* frf : frJumps) {
-        m_jumpscareFreddy.push_back(assets.GetTexture(std::string("assets/images/jumpscares/Freddy/1/") + frf));
-    }
-
     // Usage Bars
     m_usageTex.clear();
     for (int i = 1; i <= 5; ++i) {
@@ -82,9 +41,90 @@ void UI::LoadAssets(AssetManager& assets) {
     }
 }
 
+UI::~UI() {
+    UnloadJumpscareFrames();
+}
+
+void UI::UnloadJumpscareFrames() {
+    if (m_assets) {
+        for (const auto& path : m_activeJumpscarePaths) {
+            m_assets->UnloadTextureByPath(path);
+        }
+    } else {
+        for (auto& tex : m_activeJumpscareFrames) {
+            if (tex.id != 0) {
+                UnloadTexture(tex);
+            }
+        }
+    }
+    m_activeJumpscareFrames.clear();
+    m_activeJumpscarePaths.clear();
+}
+
+void UI::LoadJumpscareFrames(AnimatronicID attacker) {
+    UnloadJumpscareFrames();
+    m_activeJumpscareAttacker = attacker;
+
+    std::vector<std::string> fileList;
+    std::string folder;
+
+    switch (attacker) {
+        case AnimatronicID::Rabbit: {
+            folder = "assets/images/jumpscares/Bonnie/";
+            const char* bJumps[] = { "291.png", "293.png", "294.png", "295.png", "296.png", "297.png", "298.png", "299.png", "300.png", "301.png", "303.png" };
+            for (const char* f : bJumps) fileList.push_back(folder + f);
+            break;
+        }
+        case AnimatronicID::Chicken: {
+            folder = "assets/images/jumpscares/Chica/";
+            const char* cJumps[] = { "65.png", "69.png", "228.png", "229.png", "230.png", "231.png", "232.png", "233.png", "234.png", "235.png", "236.png", "237.png", "279.png", "281.png" };
+            for (const char* f : cJumps) fileList.push_back(folder + f);
+            break;
+        }
+        case AnimatronicID::Fox: {
+            folder = "assets/images/jumpscares/Foxy/Jumpscare/";
+            const char* fJumps[] = { "242.png", "243.png", "396.png", "397.png", "398.png", "399.png", "400.png", "401.png", "402.png", "403.png", "404.png", "405.png", "406.png", "407.png", "408.png", "409.png", "410.png", "411.png", "412.png" };
+            for (const char* f : fJumps) fileList.push_back(folder + f);
+            break;
+        }
+        case AnimatronicID::Bear:
+        case AnimatronicID::RareVisitor:
+        default: {
+            folder = "assets/images/jumpscares/Freddy/1/";
+            const char* frJumps[] = { "307.png", "308.png", "309.png", "310.png", "311.png", "312.png", "313.png", "314.png", "315.png", "316.png", "317.png", "318.png", "319.png", "320.png", "321.png", "322.png", "323.png", "324.png", "325.png" };
+            for (const char* f : frJumps) fileList.push_back(folder + f);
+            break;
+        }
+    }
+
+    for (const auto& path : fileList) {
+        if (FileExists(path.c_str())) {
+            Texture2D tex{};
+            if (m_assets) {
+                tex = m_assets->GetTexture(path);
+            } else {
+                Image img = LoadImage(path.c_str());
+                if (img.data != nullptr) {
+                    if (img.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) {
+                        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+                    }
+                    tex = LoadTextureFromImage(img);
+                    SetTextureFilter(tex, TEXTURE_FILTER_BILINEAR);
+                    UnloadImage(img);
+                }
+            }
+            if (tex.id != 0) {
+                m_activeJumpscareFrames.push_back(tex);
+                m_activeJumpscarePaths.push_back(path);
+            }
+        }
+    }
+}
+
 void UI::Reset() {
     m_menuTimer = 0.0f;
     m_jumpscareTimer = 0.0f;
+    UnloadJumpscareFrames();
     m_sixAmTimer = 0.0f;
     m_customBear = 0;
     m_customRabbit = 0;
@@ -269,20 +309,15 @@ void UI::RenderJumpscare(AnimatronicID attacker, float dt, Audio& audio) {
     }
     m_jumpscareTimer += dt;
 
-    ClearBackground(BLACK);
-
-    std::vector<Texture2D>* frames = nullptr;
-    switch (attacker) {
-        case AnimatronicID::Rabbit:      frames = &m_jumpscareBonnie; break;
-        case AnimatronicID::Chicken:     frames = &m_jumpscareChica; break;
-        case AnimatronicID::Fox:         frames = &m_jumpscareFoxy; break;
-        case AnimatronicID::RareVisitor: frames = &m_jumpscareFreddy; break;
-        default:                         frames = &m_jumpscareFreddy; break;
+    if (m_activeJumpscareFrames.empty() || m_activeJumpscareAttacker != attacker) {
+        LoadJumpscareFrames(attacker);
     }
 
-    if (frames && !frames->empty()) {
-        int idx = std::clamp(static_cast<int>(m_jumpscareTimer * 22.0f), 0, static_cast<int>(frames->size() - 1));
-        Texture2D fTex = (*frames)[idx];
+    ClearBackground(BLACK);
+
+    if (!m_activeJumpscareFrames.empty()) {
+        int idx = std::clamp(static_cast<int>(m_jumpscareTimer * 22.0f), 0, static_cast<int>(m_activeJumpscareFrames.size() - 1));
+        Texture2D fTex = m_activeJumpscareFrames[idx];
         if (fTex.id != 0) {
             // Camera shake
             float shakeX = (GetRandomValue(-15, 15));
@@ -301,6 +336,7 @@ void UI::RenderJumpscare(AnimatronicID attacker, float dt, Audio& audio) {
 }
 
 void UI::RenderGameOver(float /*dt*/) {
+    UnloadJumpscareFrames(); // Immediately release jumpscare frames from memory!
     ClearBackground(BLACK);
     for (int i = 0; i < 600; ++i) {
         int x = GetRandomValue(0, SCREEN_WIDTH);

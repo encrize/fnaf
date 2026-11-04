@@ -21,24 +21,12 @@ else()
     endif()
 endif()
 
-include(FetchContent)
-set(FETCHCONTENT_QUIET ON)
-
-option(USE_SYSTEM_RAYLIB "Use system raylib if available" ON)
-if(USE_SYSTEM_RAYLIB)
-    find_package(raylib 5.0 QUIET)
-endif()
-
-if(NOT TARGET raylib)
-    message(STATUS "Fetching raylib 5.5 via FetchContent...")
-    FetchContent_Declare(
-        raylib
-        GIT_REPOSITORY https://github.com/raysan5/raylib.git
-        GIT_TAG 5.5
-    )
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(raylib)
-endif()
+# Build optimized static raylib from thirdparty/raylib with minimal modules/formats
+set(PLATFORM "Desktop" CACHE STRING "Platform target" FORCE)
+set(GRAPHICS "GRAPHICS_API_OPENGL_33" CACHE STRING "Graphics target" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build raylib static" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+add_subdirectory(thirdparty/raylib EXCLUDE_FROM_ALL)
 
 set(SOURCES
     src/main.cpp

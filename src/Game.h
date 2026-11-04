@@ -60,6 +60,7 @@ public:
 
     bool Initialize();
     void Run();
+    void RunMeasurement();
     void Shutdown();
 
     bool IsRunning() const { return m_running; }

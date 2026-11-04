@@ -32,11 +32,14 @@ private:
     // Menu Animated Freddy frames
     std::vector<Texture2D> m_menuFreddyFrames;
 
-    // Jumpscare Animation Frame sets
-    std::vector<Texture2D> m_jumpscareBonnie;
-    std::vector<Texture2D> m_jumpscareChica;
-    std::vector<Texture2D> m_jumpscareFoxy;
-    std::vector<Texture2D> m_jumpscareFreddy;
+    // On-demand Jumpscare frames (lazy-loaded ONLY during active jumpscare, then immediately unloaded)
+    std::vector<Texture2D> m_activeJumpscareFrames;
+    std::vector<std::string> m_activeJumpscarePaths;
+    AnimatronicID m_activeJumpscareAttacker = AnimatronicID::Bear;
+    AssetManager* m_assets = nullptr;
+
+    void LoadJumpscareFrames(AnimatronicID attacker);
+    void UnloadJumpscareFrames();
 
     // Newspaper
     Texture2D m_newspaperTex{};
@@ -49,6 +52,7 @@ private:
 
 public:
     UI();
+    ~UI();
 
     void LoadAssets(AssetManager& assets);
     void Reset();

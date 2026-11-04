@@ -3,9 +3,18 @@
 #include <raylib.h>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <memory>
 
 namespace FNAF {
+
+struct TextureMemInfo {
+    std::string path;
+    int width;
+    int height;
+    int format;
+    size_t bytes;
+};
 
 class AssetManager {
 private:
@@ -28,7 +37,16 @@ public:
     void Cleanup();
 
     Texture2D GetTexture(const std::string& path);
+    bool UnloadTextureByPath(const std::string& path);
     Font GetFont(const std::string& path, int fontSize = 32);
+
+    // Memory tracking and diagnostics
+    static long GetCurrentVmRSSKb();
+    static size_t CalculateTextureBytes(int width, int height, int format);
+    size_t GetTotalTextureBytes() const;
+    size_t GetLoadedTextureCount() const { return m_textures.size(); }
+    std::vector<TextureMemInfo> GetLoadedTexturesSorted() const;
+    void LogMemoryReport(const std::string& sceneName) const;
 };
 
 } // namespace FNAF

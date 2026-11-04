@@ -34,48 +34,26 @@ private:
     std::vector<Texture2D> m_flipFrames;
     std::vector<Texture2D> m_glitchFrames;
 
-    // Room Textures
-    Texture2D m_stageAll{};
-    Texture2D m_stageBonnieGone{};
-    Texture2D m_stageChicaGone{};
-    Texture2D m_stageEmpty{};
+    // LRU Cache for room camera feeds (holds max 3 feeds in VRAM)
+    struct CameraCacheEntry {
+        std::string path;
+        Texture2D texture;
+        uint32_t lastAccess;
+    };
+    static constexpr size_t CAMERA_CACHE_CAPACITY = 3;
+    mutable std::vector<CameraCacheEntry> m_camCache;
+    mutable uint32_t m_cacheClock = 0;
+    AssetManager* m_assets = nullptr;
 
-    Texture2D m_diningEmpty{};
-    Texture2D m_diningBonnie{};
-    Texture2D m_diningChica{};
-    Texture2D m_diningFreddy{};
-
-    Texture2D m_coveClosed{};
-    Texture2D m_covePeeking{};
-    Texture2D m_coveOpen{};
-
-    Texture2D m_westHallEmpty{};
-    Texture2D m_westHallBonnie{};
-    Texture2D m_westCornerEmpty{};
-    Texture2D m_westCornerBonnie{};
-
-    Texture2D m_closetEmpty{};
-    Texture2D m_closetBonnie{};
-
-    Texture2D m_eastHallEmpty{};
-    Texture2D m_eastHallChica{};
-    Texture2D m_eastCornerEmpty{};
-    Texture2D m_eastCornerChica{};
-    Texture2D m_eastCornerFreddy{};
-
-    Texture2D m_backstageEmpty{};
-    Texture2D m_backstageBonnie{};
-
-    Texture2D m_restroomEmpty{};
-    Texture2D m_restroomChica{};
-    Texture2D m_restroomFreddy{};
-
-    Texture2D m_kitchenTex{};
+    Texture2D GetCachedCameraTexture(const std::string& path) const;
+    void ClearCameraCache();
+    std::string DetermineCameraFeedPath(LocationID bearLoc, LocationID rabbitLoc, LocationID chickenLoc, FoxState foxState) const;
 
     void SetupMapButtons();
 
 public:
     Cameras();
+    ~Cameras();
 
     void LoadAssets(AssetManager& assets);
     void Reset();

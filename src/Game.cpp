@@ -233,6 +233,7 @@ void Game::Update(float dt) {
 
         case GameState::Jumpscare:
             if (m_ui.IsJumpscareFinished()) {
+                m_ui.Reset();
                 m_state = GameState::GameOver;
             }
             break;
@@ -355,31 +356,101 @@ void Game::Render() {
 }
 
 void Game::RenderDebugOverlay() {
-    DrawRectangle(10, 10, 420, 260, Color{ 0, 0, 0, 200 });
-    DrawRectangleLinesEx(Rectangle{ 10, 10, 420, 260 }, 1, GREEN);
+    DrawRectangle(10, 10, 440, 310, Color{ 0, 0, 0, 210 });
+    DrawRectangleLinesEx(Rectangle{ 10, 10, 440, 310 }, 1, GREEN);
 
-    DrawText("=== DEBUG MODE (F1 to Toggle) ===", 20, 16, 14, GREEN);
+    DrawText("=== DEBUG MODE (F1 to Toggle | F2 Log Mem) ===", 20, 16, 14, GREEN);
+
+    long rssKb = AssetManager::GetCurrentVmRSSKb();
+    size_t texBytes = m_assets.GetTotalTextureBytes();
+    size_t texCount = m_assets.GetLoadedTextureCount();
+    std::string memStr = "VmRSS: " + std::to_string(rssKb / 1024) + " MB | TexMem: " + 
+                         std::to_string(texBytes / (1024 * 1024)) + " MB (" + std::to_string(texCount) + " tex)";
+    DrawText(memStr.c_str(), 20, 38, 14, ORANGE);
 
     std::string pStr = "Power: " + std::to_string(static_cast<int>(m_power.GetPower())) + "% | Usage: " + std::to_string(m_power.GetUsageLevel());
-    DrawText(pStr.c_str(), 20, 38, 14, YELLOW);
+    DrawText(pStr.c_str(), 20, 58, 14, YELLOW);
 
     std::string bStr = "Bear AI: " + std::to_string(m_animatronics.GetBearAI()) + " | Loc: " + GetLocationName(m_animatronics.GetBearLocation());
-    DrawText(bStr.c_str(), 20, 58, 14, WHITE);
+    DrawText(bStr.c_str(), 20, 78, 14, WHITE);
 
     std::string rStr = "Rabbit AI: " + std::to_string(m_animatronics.GetRabbitAI()) + " | Loc: " + GetLocationName(m_animatronics.GetRabbitLocation());
-    DrawText(rStr.c_str(), 20, 78, 14, WHITE);
+    DrawText(rStr.c_str(), 20, 98, 14, WHITE);
 
     std::string cStr = "Chicken AI: " + std::to_string(m_animatronics.GetChickenAI()) + " | Loc: " + GetLocationName(m_animatronics.GetChickenLocation());
-    DrawText(cStr.c_str(), 20, 98, 14, WHITE);
+    DrawText(cStr.c_str(), 20, 118, 14, WHITE);
 
     std::string fStr = "Fox AI: " + std::to_string(m_animatronics.GetFoxAI()) + " | State: " + std::to_string(static_cast<int>(m_animatronics.GetFoxState()));
-    DrawText(fStr.c_str(), 20, 118, 14, WHITE);
+    DrawText(fStr.c_str(), 20, 138, 14, WHITE);
 
-    DrawText("Keys: [1] Move Rabbit  [2] Move Chicken", 20, 150, 13, SKYBLUE);
-    DrawText("      [3] Move Bear    [4] Advance Fox", 20, 170, 13, SKYBLUE);
-    DrawText("      [P] Drain Power  [G] Golden Bear", 20, 190, 13, SKYBLUE);
-    DrawText("      [N] Skip to 6AM  [J] Test Jumpscare", 20, 210, 13, SKYBLUE);
-    DrawText("      [Q/E] Doors      [Z/C] Lights", 20, 230, 13, SKYBLUE);
+    DrawText("Keys: [1] Move Rabbit  [2] Move Chicken", 20, 170, 13, SKYBLUE);
+    DrawText("      [3] Move Bear    [4] Advance Fox", 20, 190, 13, SKYBLUE);
+    DrawText("      [P] Drain Power  [G] Golden Bear", 20, 210, 13, SKYBLUE);
+    DrawText("      [N] Skip to 6AM  [J] Test Jumpscare", 20, 230, 13, SKYBLUE);
+    DrawText("      [Q/E] Doors      [Z/C] Lights", 20, 250, 13, SKYBLUE);
+    DrawText("      [F2] Dump Detailed Texture Memory to Log", 20, 275, 13, GREEN);
+
+    if (IsKeyPressed(KEY_F2)) {
+        m_assets.LogMemoryReport("Interactive F2 Debug");
+    }
+}
+
+void Game::RunMeasurement() {
+    std::cout << "\n=======================================================\n";
+    std::cout << "        RUNNING COMPREHENSIVE MEMORY MEASUREMENT       \n";
+    std::cout << "=======================================================\n";
+
+    // 1. Main Menu
+    m_state = GameState::MainMenu;
+    for (int i = 0; i < 30; ++i) {
+        Update(1.0f / 60.0f);
+        Render();
+    }
+    m_assets.LogMemoryReport("Main Menu");
+
+    // 2. Office (Playing)
+    m_state = GameState::Playing;
+    StartNightSession();
+    for (int i = 0; i < 30; ++i) {
+        Update(1.0f / 60.0f);
+        Render();
+    }
+    m_assets.LogMemoryReport("Office");
+
+    // 3. Cameras Open
+    if (!m_cameras.IsMonitorUp()) {
+        m_cameras.ToggleMonitor(m_audio);
+    }
+    m_cameras.SetCurrentCamera(CameraID::CAM_1A, m_audio);
+    for (int i = 0; i < 15; ++i) {
+        Update(1.0f / 60.0f);
+        Render();
+    }
+    m_cameras.SetCurrentCamera(CameraID::CAM_1B, m_audio);
+    for (int i = 0; i < 15; ++i) {
+        Update(1.0f / 60.0f);
+        Render();
+    }
+    m_assets.LogMemoryReport("Cameras Open");
+
+    // 4. Jumpscare
+    if (m_cameras.IsMonitorUp()) {
+        m_cameras.ToggleMonitor(m_audio);
+    }
+    m_activeJumpscareAttacker = AnimatronicID::Bear;
+    m_ui.StartJumpscare();
+    m_state = GameState::Jumpscare;
+    for (int i = 0; i < 30; ++i) {
+        Update(1.0f / 60.0f);
+        Render();
+    }
+    m_assets.LogMemoryReport("Jumpscare");
+
+    // 5. Post-Jumpscare (Unload test)
+    m_ui.Reset();
+    m_assets.LogMemoryReport("Post-Jumpscare (Unloaded)");
+
+    std::cout << "\n[MEASUREMENT COMPLETE]\n" << std::flush;
 }
 
 void Game::Run() {
