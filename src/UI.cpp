@@ -136,7 +136,7 @@ void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*
     DrawText("1987 EDITION", 92, 215, 20, Color{ 140, 140, 150, 255 });
 
     // Menu Options
-    Vector2 mousePos = GetMousePosition();
+    Vector2 mousePos = GetVirtualMousePosition();
     float startY = 320.0f;
     float spacing = 55.0f;
 
@@ -423,7 +423,7 @@ void UI::RenderSettingsMenu(Settings& settings, Audio& /*audio*/) {
     DrawRectangle(sx + 240, sy + rowH * 3, 26, 26, settings.crtEffects ? GREEN : GRAY);
 
     Rectangle backBtn{ SCREEN_WIDTH / 2.0f - 80.0f, sy + rowH * 4.5f, 160.0f, 45.0f };
-    Vector2 mPos = GetMousePosition();
+    Vector2 mPos = GetVirtualMousePosition();
     bool hoverBack = CheckCollisionPointRec(mPos, backBtn);
     DrawRectangleRec(backBtn, hoverBack ? Color{ 80, 100, 140, 255 } : Color{ 40, 50, 70, 255 });
     DrawRectangleLinesEx(backBtn, 2, hoverBack ? SKYBLUE : GRAY);
@@ -527,7 +527,7 @@ void UI::RenderCustomNightMenu(NightManager& /*nightMgr*/, Audio& /*audio*/) {
     }
 
     Rectangle readyBtn{ SCREEN_WIDTH / 2.0f - 100.0f, 500.0f, 200.0f, 55.0f };
-    Vector2 mPos = GetMousePosition();
+    Vector2 mPos = GetVirtualMousePosition();
     bool hoverReady = CheckCollisionPointRec(mPos, readyBtn);
     DrawRectangleRec(readyBtn, hoverReady ? Color{ 40, 160, 60, 255 } : Color{ 30, 110, 45, 255 });
     DrawRectangleLinesEx(readyBtn, 2, hoverReady ? GREEN : LIGHTGRAY);

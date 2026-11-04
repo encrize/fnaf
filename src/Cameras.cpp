@@ -185,7 +185,7 @@ void Cameras::Render(float /*officeCameraX*/,
                      FoxState foxState,
                      bool crtEnabled) {
     if (m_monitorProgress <= 0.01f) {
-        Vector2 mousePos = GetMousePosition();
+        Vector2 mousePos = GetVirtualMousePosition();
         bool hovering = CheckCollisionPointRec(mousePos, m_monitorFlipBar);
         Color barColor = hovering ? Color{ 80, 160, 220, 160 } : Color{ 40, 40, 50, 140 };
         DrawRectangleRec(m_monitorFlipBar, barColor);
@@ -337,7 +337,7 @@ void Cameras::Render(float /*officeCameraX*/,
         DrawRectangleLinesEx(Rectangle{ mapX - 20, mapY - 20, 360, 360 }, 2, Color{ 50, 60, 75, 255 });
     }
 
-    Vector2 mousePos = GetMousePosition();
+    Vector2 mousePos = GetVirtualMousePosition();
     for (const auto& btn : m_mapButtons) {
         Rectangle drawRect = btn.rect;
         drawRect.y += monitorY;

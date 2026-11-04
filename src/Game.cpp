@@ -36,16 +36,7 @@ bool Game::Initialize() {
 }
 
 Vector2 Game::GetVirtualMousePosition() const {
-    Vector2 m = GetMousePosition();
-    float screenW = static_cast<float>(GetScreenWidth());
-    float screenH = static_cast<float>(GetScreenHeight());
-    float scale = std::min(screenW / static_cast<float>(SCREEN_WIDTH), screenH / static_cast<float>(SCREEN_HEIGHT));
-    float offsetX = (screenW - (static_cast<float>(SCREEN_WIDTH) * scale)) * 0.5f;
-    float offsetY = (screenH - (static_cast<float>(SCREEN_HEIGHT) * scale)) * 0.5f;
-    return Vector2{
-        std::clamp((m.x - offsetX) / scale, 0.0f, static_cast<float>(SCREEN_WIDTH)),
-        std::clamp((m.y - offsetY) / scale, 0.0f, static_cast<float>(SCREEN_HEIGHT))
-    };
+    return FNAF::GetVirtualMousePosition();
 }
 
 void Game::StartNightSession() {
