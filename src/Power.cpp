@@ -42,9 +42,19 @@ void Power::Update(float dt, bool leftDoor, bool rightDoor, bool leftLight, bool
         if (rightLight) m_usageLevel++;
         if (monitorUp) m_usageLevel++;
 
-        // Base drain rate per usage bar: ~0.105% per second
-        float drainRate = m_usageLevel * 0.105f;
-        m_power -= drainRate * dt;
+        // Power drain intervals (matching canonical FNAF 1 / FNaF-1-3DS):
+        // Usage 1: 1% every 8.0s (0.125%/s)
+        // Usage 2: 1% every 4.5s (0.222%/s)
+        // Usage 3: 1% every 2.3s (0.435%/s)
+        // Usage 4: 1% every 1.1s (0.909%/s)
+        // Usage 5: 1% every 0.6s (1.667%/s)
+        float drainInterval = 8.0f;
+        if (m_usageLevel == 2) drainInterval = 4.5f;
+        else if (m_usageLevel == 3) drainInterval = 2.3f;
+        else if (m_usageLevel == 4) drainInterval = 1.1f;
+        else if (m_usageLevel >= 5) drainInterval = 0.6f;
+
+        m_power -= (1.0f / drainInterval) * dt;
 
         if (m_power <= 0.0f) {
             m_power = 0.0f;

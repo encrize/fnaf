@@ -12,18 +12,53 @@ Office::Office() {
 }
 
 void Office::LoadAssets(AssetManager& assets) {
-    m_officeTex = assets.GetTexture("assets/images/office_panorama.png");
-    m_doorTex = assets.GetTexture("assets/images/door.png");
-    m_panelTex = assets.GetTexture("assets/images/button_panel.png");
-    m_fanTex = assets.GetTexture("assets/images/fan_blade.png");
-    m_rabbitDoorTex = assets.GetTexture("assets/images/rabbit_door.png");
-    m_chickenDoorTex = assets.GetTexture("assets/images/chicken_door.png");
+    m_officeMain = assets.GetTexture("assets/images/office/office_main.png");
+    m_officeLightL = assets.GetTexture("assets/images/office/office_light_l.png");
+    m_officeLightLBonnie = assets.GetTexture("assets/images/office/office_light_l_bonnie.png");
+    m_officeLightR = assets.GetTexture("assets/images/office/office_light_r.png");
+    m_officeLightRChica = assets.GetTexture("assets/images/office/office_light_r_chica.png");
+    m_officeFlicker1 = assets.GetTexture("assets/images/office/office_freddy_flicker1.png");
+    m_officeFlicker2 = assets.GetTexture("assets/images/office/office_freddy_flicker2.png");
+    m_officeBlackout = assets.GetTexture("assets/images/office/office_blackout.png");
+
+    m_fanFrames.clear();
+    m_fanFrames.push_back(assets.GetTexture("assets/images/fan/57.png"));
+    m_fanFrames.push_back(assets.GetTexture("assets/images/fan/59.png"));
+    m_fanFrames.push_back(assets.GetTexture("assets/images/fan/60.png"));
+
+    m_doorLFrames.clear();
+    const char* doorLFiles[] = {
+        "88.png", "89.png", "91.png", "92.png", "93.png", "94.png", "95.png",
+        "96.png", "97.png", "98.png", "99.png", "100.png", "101.png", "102.png"
+    };
+    for (const char* f : doorLFiles) {
+        m_doorLFrames.push_back(assets.GetTexture(std::string("assets/images/doors/") + f));
+    }
+
+    m_doorRFrames.clear();
+    const char* doorRFiles[] = {
+        "104.png", "106.png", "107.png", "108.png", "109.png", "110.png", "111.png",
+        "112.png", "113.png", "114.png", "115.png", "116.png", "117.png", "118.png"
+    };
+    for (const char* f : doorRFiles) {
+        m_doorRFrames.push_back(assets.GetTexture(std::string("assets/images/doors/") + f));
+    }
+
+    m_btnL_Off   = assets.GetTexture("assets/images/buttons/122.png");
+    m_btnL_Door  = assets.GetTexture("assets/images/buttons/124.png");
+    m_btnL_Light = assets.GetTexture("assets/images/buttons/125.png");
+    m_btnL_Both  = assets.GetTexture("assets/images/buttons/130.png");
+
+    m_btnR_Off   = assets.GetTexture("assets/images/buttons/134.png");
+    m_btnR_Door  = assets.GetTexture("assets/images/buttons/135.png");
+    m_btnR_Light = assets.GetTexture("assets/images/buttons/131.png");
+    m_btnR_Both  = assets.GetTexture("assets/images/buttons/47.png");
+
     m_goldenBearTex = assets.GetTexture("assets/images/golden_bear.png");
-    m_vignetteTex = assets.GetTexture("assets/images/vignette.png");
 }
 
 void Office::Reset() {
-    m_cameraX = m_maxPan * 0.5f; // Start centered
+    m_cameraX = m_maxPan * 0.5f;
     m_targetCameraX = m_cameraX;
     m_leftDoorClosed = false;
     m_rightDoorClosed = false;
@@ -31,14 +66,14 @@ void Office::Reset() {
     m_rightDoorProgress = 0.0f;
     m_leftLightActive = false;
     m_rightLightActive = false;
-    m_fanBladeAngle = 0.0f;
+    m_fanAnimTimer = 0.0f;
+    m_fanFrame = 0;
 
-    // Buttons relative to office world coordinates (Office width = 1600)
-    m_leftDoorButton = Rectangle{ 70.0f, 260.0f, 40.0f, 45.0f };
-    m_leftLightButton = Rectangle{ 70.0f, 320.0f, 40.0f, 45.0f };
+    m_leftDoorButton  = Rectangle{ 55.0f, 230.0f, 92.0f, 120.0f };
+    m_leftLightButton = Rectangle{ 55.0f, 350.0f, 92.0f, 120.0f };
 
-    m_rightDoorButton = Rectangle{ 1490.0f, 260.0f, 40.0f, 45.0f };
-    m_rightLightButton = Rectangle{ 1490.0f, 320.0f, 40.0f, 45.0f };
+    m_rightDoorButton  = Rectangle{ 1495.0f, 230.0f, 92.0f, 120.0f };
+    m_rightLightButton = Rectangle{ 1495.0f, 350.0f, 92.0f, 120.0f };
 }
 
 void Office::SetLeftDoor(bool closed, Audio& audio) {
@@ -55,24 +90,30 @@ void Office::SetRightDoor(bool closed, Audio& audio) {
     }
 }
 
-void Office::SetLeftLight(bool active, Audio& audio) {
+void Office::SetLeftLight(bool active, bool rabbitAtDoor, Audio& audio) {
     if (m_leftLightActive != active) {
         m_leftLightActive = active;
         audio.SetLightBuzz(m_leftLightActive || m_rightLightActive);
+        if (active && rabbitAtDoor) {
+            audio.PlayWindowScare();
+        }
     }
 }
 
-void Office::SetRightLight(bool active, Audio& audio) {
+void Office::SetRightLight(bool active, bool chickenAtDoor, Audio& audio) {
     if (m_rightLightActive != active) {
         m_rightLightActive = active;
         audio.SetLightBuzz(m_leftLightActive || m_rightLightActive);
+        if (active && chickenAtDoor) {
+            audio.PlayWindowScare();
+        }
     }
 }
 
-void Office::HandleInput(bool monitorUp, bool powerDepleted, Audio& audio) {
+void Office::HandleInput(bool monitorUp, bool powerDepleted, bool rabbitAtDoor, bool chickenAtDoor, Audio& audio) {
     if (monitorUp || powerDepleted) {
-        SetLeftLight(false, audio);
-        SetRightLight(false, audio);
+        SetLeftLight(false, false, audio);
+        SetRightLight(false, false, audio);
         return;
     }
 
@@ -94,14 +135,14 @@ void Office::HandleInput(bool monitorUp, bool powerDepleted, Audio& audio) {
     }
 
     bool leftLightDesired = (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(worldMouse, m_leftLightButton)) || IsKeyDown(KEY_Z);
-    SetLeftLight(leftLightDesired, audio);
+    SetLeftLight(leftLightDesired, rabbitAtDoor, audio);
 
     if (IsKeyPressed(KEY_E) || (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(worldMouse, m_rightDoorButton))) {
         SetRightDoor(!m_rightDoorClosed, audio);
     }
 
     bool rightLightDesired = (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(worldMouse, m_rightLightButton)) || IsKeyDown(KEY_C);
-    SetRightLight(rightLightDesired, audio);
+    SetRightLight(rightLightDesired, chickenAtDoor, audio);
 }
 
 void Office::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
@@ -121,207 +162,90 @@ void Office::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
     m_leftDoorProgress += (targetLeft - m_leftDoorProgress) * std::min(1.0f, dt * doorSpeed);
     m_rightDoorProgress += (targetRight - m_rightDoorProgress) * std::min(1.0f, dt * doorSpeed);
 
-    if (!powerDepleted) {
-        m_fanBladeAngle += dt * 1200.0f;
-        if (m_fanBladeAngle >= 360.0f) m_fanBladeAngle -= 360.0f;
+    if (!powerDepleted && !m_fanFrames.empty()) {
+        m_fanAnimTimer += dt;
+        if (m_fanAnimTimer >= 0.04f) {
+            m_fanAnimTimer = 0.0f;
+            m_fanFrame = (m_fanFrame + 1) % m_fanFrames.size();
+        }
     }
 }
 
 void Office::Render(bool rabbitAtDoor, bool chickenAtDoor, bool bearPowerOutFlicker, bool rareVisitorActive, bool powerDepleted) {
     float ox = -m_cameraX;
 
-    // 1. Office Panorama Texture Background
-    if (m_officeTex.id != 0) {
-        Color tint = powerDepleted ? Color{ 25, 25, 35, 255 } : WHITE;
-        DrawTexture(m_officeTex, ox, 0, tint);
+    // 1. Office Background Selection
+    Texture2D activeBg = m_officeMain;
+
+    if (powerDepleted) {
+        if (bearPowerOutFlicker) {
+            activeBg = (GetRandomValue(0, 10) > 4) ? m_officeFlicker1 : m_officeFlicker2;
+        } else {
+            activeBg = m_officeBlackout;
+        }
+    } else if (m_leftLightActive) {
+        activeBg = rabbitAtDoor ? m_officeLightLBonnie : m_officeLightL;
+    } else if (m_rightLightActive) {
+        activeBg = chickenAtDoor ? m_officeLightRChica : m_officeLightR;
+    }
+
+    if (activeBg.id != 0) {
+        DrawTexture(activeBg, ox, 0, WHITE);
     } else {
-        // Fallback procedural wall
-        Color wallColor = powerDepleted ? Color{ 8, 8, 12, 255 } : Color{ 32, 34, 40, 255 };
-        DrawRectangle(ox, 0, 1600, SCREEN_HEIGHT, wallColor);
+        DrawRectangle(ox, 0, 1600, SCREEN_HEIGHT, powerDepleted ? BLACK : Color{ 30, 32, 38, 255 });
     }
 
-    // 2. Left Doorway & Hallway Lighting
-    float leftDoorX = ox + 140.0f;
-    float leftDoorY = 120.0f;
-    float doorW = 160.0f;
-    float doorH = 460.0f;
-
-    if (m_leftLightActive && !powerDepleted) {
-        // Illuminated hallway
-        DrawRectangle(leftDoorX, leftDoorY, doorW, doorH, Color{ 140, 140, 160, 255 });
-        DrawRectangleGradientH(leftDoorX - 60, leftDoorY, 60, doorH, Color{ 0, 0, 0, 0 }, Color{ 160, 160, 180, 80 });
-        DrawRectangleGradientH(leftDoorX, leftDoorY, doorW, doorH, Color{ 200, 200, 220, 120 }, Color{ 100, 100, 120, 80 });
-    }
-
-    // Rabbit at Left Door
-    if (rabbitAtDoor && m_leftLightActive && !powerDepleted) {
-        if (m_rabbitDoorTex.id != 0) {
-            DrawTexture(m_rabbitDoorTex, leftDoorX + 20, leftDoorY + 110, WHITE);
-        } else {
-            // Fallback silhouette
-            float rx = leftDoorX + 35.0f;
-            float ry = leftDoorY + 90.0f;
-            DrawRectangle(rx + 10, ry + 120, 70, 180, Color{ 45, 35, 65, 255 });
-            DrawCircle(rx + 45, ry + 90, 36, Color{ 55, 45, 80, 255 });
-            DrawCircle(rx + 33, ry + 85, 8, Color{ 230, 230, 240, 255 });
-            DrawCircle(rx + 57, ry + 85, 8, Color{ 230, 230, 240, 255 });
-            DrawCircle(rx + 33, ry + 85, 4, Color{ 200, 30, 80, 255 });
-            DrawCircle(rx + 57, ry + 85, 4, Color{ 200, 30, 80, 255 });
+    // 2. Animated Doors
+    if (m_leftDoorProgress > 0.01f && !m_doorLFrames.empty()) {
+        int idx = std::clamp(static_cast<int>(m_leftDoorProgress * (m_doorLFrames.size() - 1)), 0, static_cast<int>(m_doorLFrames.size() - 1));
+        if (m_doorLFrames[idx].id != 0) {
+            DrawTexture(m_doorLFrames[idx], ox + 72, 0, WHITE);
         }
     }
 
-    // Left Blast Door (sliding down)
-    float leftDoorVisualH = doorH * m_leftDoorProgress;
-    if (leftDoorVisualH > 2.0f) {
-        if (m_doorTex.id != 0) {
-            Rectangle src{ 0, 0, (float)m_doorTex.width, (float)m_doorTex.height * m_leftDoorProgress };
-            Rectangle dst{ leftDoorX, leftDoorY, doorW, leftDoorVisualH };
-            DrawTexturePro(m_doorTex, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
-        } else {
-            DrawRectangle(leftDoorX, leftDoorY, doorW, leftDoorVisualH, Color{ 50, 52, 60, 255 });
+    if (m_rightDoorProgress > 0.01f && !m_doorRFrames.empty()) {
+        int idx = std::clamp(static_cast<int>(m_rightDoorProgress * (m_doorRFrames.size() - 1)), 0, static_cast<int>(m_doorRFrames.size() - 1));
+        if (m_doorRFrames[idx].id != 0) {
+            DrawTexture(m_doorRFrames[idx], ox + 1305, 0, WHITE);
         }
     }
 
-    // 3. Right Doorway & Hallway Lighting
-    float rightDoorX = ox + 1300.0f;
-    float rightDoorY = 120.0f;
+    // 3. Animated Button Panels
+    if (!powerDepleted) {
+        // Left Button Panel (55, 230)
+        Texture2D lBtn = m_btnL_Off;
+        if (m_leftDoorClosed && m_leftLightActive) lBtn = m_btnL_Both;
+        else if (m_leftDoorClosed) lBtn = m_btnL_Door;
+        else if (m_leftLightActive) lBtn = m_btnL_Light;
 
-    if (m_rightLightActive && !powerDepleted) {
-        DrawRectangle(rightDoorX, rightDoorY, doorW, doorH, Color{ 150, 140, 120, 255 });
-        DrawRectangleGradientH(rightDoorX + doorW, rightDoorY, 60, doorH, Color{ 180, 160, 140, 80 }, Color{ 0, 0, 0, 0 });
-        DrawRectangleGradientH(rightDoorX, rightDoorY, doorW, doorH, Color{ 120, 110, 90, 80 }, Color{ 220, 200, 160, 120 });
-    }
+        if (lBtn.id != 0) {
+            DrawTexture(lBtn, ox + 55, 230, WHITE);
+        }
 
-    // Chicken at Right Door
-    if (chickenAtDoor && m_rightLightActive && !powerDepleted) {
-        if (m_chickenDoorTex.id != 0) {
-            DrawTexture(m_chickenDoorTex, rightDoorX + 20, rightDoorY + 110, WHITE);
-        } else {
-            float cx = rightDoorX + 35.0f;
-            float cy = rightDoorY + 95.0f;
-            DrawRectangle(cx + 10, cy + 115, 70, 185, Color{ 70, 60, 30, 255 });
-            DrawCircle(cx + 45, cy + 85, 38, Color{ 85, 75, 35, 255 });
-            DrawCircle(cx + 33, cy + 78, 8, Color{ 240, 240, 245, 255 });
-            DrawCircle(cx + 57, cy + 78, 8, Color{ 240, 240, 245, 255 });
-            DrawCircle(cx + 33, cy + 78, 4, Color{ 180, 30, 20, 255 });
-            DrawCircle(cx + 57, cy + 78, 4, Color{ 180, 30, 20, 255 });
+        // Right Button Panel (1495, 230)
+        Texture2D rBtn = m_btnR_Off;
+        if (m_rightDoorClosed && m_rightLightActive) rBtn = m_btnR_Both;
+        else if (m_rightDoorClosed) rBtn = m_btnR_Door;
+        else if (m_rightLightActive) rBtn = m_btnR_Light;
+
+        if (rBtn.id != 0) {
+            DrawTexture(rBtn, ox + 1495, 230, WHITE);
         }
     }
 
-    // Right Blast Door (sliding down)
-    float rightDoorVisualH = doorH * m_rightDoorProgress;
-    if (rightDoorVisualH > 2.0f) {
-        if (m_doorTex.id != 0) {
-            Rectangle src{ 0, 0, (float)m_doorTex.width, (float)m_doorTex.height * m_rightDoorProgress };
-            Rectangle dst{ rightDoorX, rightDoorY, doorW, rightDoorVisualH };
-            DrawTexturePro(m_doorTex, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
-        } else {
-            DrawRectangle(rightDoorX, rightDoorY, doorW, rightDoorVisualH, Color{ 50, 52, 60, 255 });
+    // 4. Desk Fan Animation (at 740, 370)
+    if (!powerDepleted && !m_fanFrames.empty()) {
+        Texture2D fanTex = m_fanFrames[m_fanFrame];
+        if (fanTex.id != 0) {
+            DrawTexture(fanTex, ox + 740, 370, WHITE);
         }
     }
 
-    // 4. Power-Out Bear Glowing Face in Left Doorway
-    if (bearPowerOutFlicker && powerDepleted) {
-        float bx = leftDoorX + 45.0f;
-        float by = leftDoorY + 120.0f;
-        DrawCircle(bx + 35, by + 60, 42, Color{ 25, 20, 15, 255 });
-        DrawCircle(bx + 10, by + 30, 14, Color{ 25, 20, 15, 255 });
-        DrawCircle(bx + 60, by + 30, 14, Color{ 25, 20, 15, 255 });
-        DrawCircle(bx + 24, by + 55, 6, Color{ 180, 220, 255, 255 });
-        DrawCircle(bx + 46, by + 55, 6, Color{ 180, 220, 255, 255 });
-        DrawCircle(bx + 24, by + 55, 3, Color{ 255, 255, 255, 255 });
-        DrawCircle(bx + 46, by + 55, 3, Color{ 255, 255, 255, 255 });
-    }
-
-    // 5. Door & Light Control Panels with Textures
-    // Left Control Panel
-    if (m_panelTex.id != 0) {
-        DrawTexture(m_panelTex, ox + m_leftDoorButton.x - 10, m_leftDoorButton.y - 15, WHITE);
-    } else {
-        DrawRectangle(ox + m_leftDoorButton.x - 10, m_leftDoorButton.y - 15, 60, 125, Color{ 20, 20, 24, 255 });
-    }
-
-    // Left Door Button
-    Color lDoorCol = m_leftDoorClosed ? Color{ 210, 40, 40, 255 } : Color{ 120, 120, 130, 255 };
-    DrawRectangle(ox + m_leftDoorButton.x, m_leftDoorButton.y, m_leftDoorButton.width, m_leftDoorButton.height, lDoorCol);
-    DrawText("DOOR", ox + m_leftDoorButton.x + 3, m_leftDoorButton.y + 10, 10, WHITE);
-    DrawText("[Q]", ox + m_leftDoorButton.x + 11, m_leftDoorButton.y + 26, 12, YELLOW);
-
-    // Left Light Button
-    Color lLightCol = m_leftLightActive ? Color{ 80, 200, 240, 255 } : Color{ 60, 60, 70, 255 };
-    DrawRectangle(ox + m_leftLightButton.x, m_leftLightButton.y, m_leftLightButton.width, m_leftLightButton.height, lLightCol);
-    DrawText("LIGHT", ox + m_leftLightButton.x + 3, m_leftLightButton.y + 10, 10, WHITE);
-    DrawText("[Z]", ox + m_leftLightButton.x + 11, m_leftLightButton.y + 26, 12, YELLOW);
-
-    // Right Control Panel
-    if (m_panelTex.id != 0) {
-        DrawTexture(m_panelTex, ox + m_rightDoorButton.x - 10, m_rightDoorButton.y - 15, WHITE);
-    } else {
-        DrawRectangle(ox + m_rightDoorButton.x - 10, m_rightDoorButton.y - 15, 60, 125, Color{ 20, 20, 24, 255 });
-    }
-
-    // Right Door Button
-    Color rDoorCol = m_rightDoorClosed ? Color{ 210, 40, 40, 255 } : Color{ 120, 120, 130, 255 };
-    DrawRectangle(ox + m_rightDoorButton.x, m_rightDoorButton.y, m_rightDoorButton.width, m_rightDoorButton.height, rDoorCol);
-    DrawText("DOOR", ox + m_rightDoorButton.x + 3, m_rightDoorButton.y + 10, 10, WHITE);
-    DrawText("[E]", ox + m_rightDoorButton.x + 11, m_rightDoorButton.y + 26, 12, YELLOW);
-
-    // Right Light Button
-    Color rLightCol = m_rightLightActive ? Color{ 80, 200, 240, 255 } : Color{ 60, 60, 70, 255 };
-    DrawRectangle(ox + m_rightLightButton.x, m_rightLightButton.y, m_rightLightButton.width, m_rightLightButton.height, rLightCol);
-    DrawText("LIGHT", ox + m_rightLightButton.x + 3, m_rightLightButton.y + 10, 10, WHITE);
-    DrawText("[C]", ox + m_rightLightButton.x + 11, m_rightLightButton.y + 26, 12, YELLOW);
-
-    // 6. Rare Visitor (Golden Bear)
+    // 5. Golden Bear
     if (rareVisitorActive && !powerDepleted) {
-        float gX = ox + 680.0f;
-        float gY = 480.0f;
         if (m_goldenBearTex.id != 0) {
-            DrawTexture(m_goldenBearTex, gX, gY, WHITE);
-        } else {
-            DrawRectangle(gX + 20, gY + 40, 80, 90, Color{ 140, 120, 20, 255 });
-            DrawCircle(gX + 60, gY + 30, 36, Color{ 160, 135, 25, 255 });
+            DrawTexture(m_goldenBearTex, ox + 680, 480, WHITE);
         }
-    }
-
-    // 7. Desk Fan with Texture & Continuous Rotation
-    float fanBaseX = ox + 760.0f;
-    float fanBaseY = 490.0f;
-    float fanCenterX = fanBaseX + 40.0f;
-    float fanCenterY = fanBaseY - 55.0f;
-
-    // Fan stand
-    DrawRectangle(fanBaseX + 35, fanBaseY - 45, 10, 45, Color{ 30, 30, 35, 255 });
-    DrawCircle(fanBaseX + 40, fanBaseY, 22, Color{ 25, 25, 30, 255 });
-
-    // Fan head housing
-    DrawCircle(fanCenterX, fanCenterY, 38, Color{ 20, 20, 25, 180 });
-    DrawCircleLines(fanCenterX, fanCenterY, 38, Color{ 70, 70, 80, 255 });
-
-    if (m_fanTex.id != 0) {
-        Rectangle src{ 0, 0, (float)m_fanTex.width, (float)m_fanTex.height };
-        Rectangle dst{ fanCenterX, fanCenterY, 70, 70 };
-        Vector2 origin{ 35, 35 };
-        DrawTexturePro(m_fanTex, src, dst, origin, m_fanBladeAngle, WHITE);
-    } else {
-        // Fallback procedural fan blades
-        for (int b = 0; b < 3; ++b) {
-            float angleRad = (m_fanBladeAngle + b * 120.0f) * (PI / 180.0f);
-            float bx1 = fanCenterX;
-            float by1 = fanCenterY;
-            float bx2 = fanCenterX + std::cos(angleRad) * 32.0f;
-            float by2 = fanCenterY + std::sin(angleRad) * 32.0f;
-            DrawLineEx(Vector2{ bx1, by1 }, Vector2{ bx2, by2 }, 6, Color{ 140, 145, 155, 255 });
-        }
-    }
-    DrawCircle(fanCenterX, fanCenterY, 8, Color{ 40, 42, 48, 255 });
-
-    // 8. Vignette Shadow Overlay
-    if (m_vignetteTex.id != 0) {
-        DrawTexture(m_vignetteTex, 0, 0, WHITE);
-    } else {
-        DrawRectangleGradientV(0, 0, SCREEN_WIDTH, 140, Color{ 0, 0, 0, 180 }, Color{ 0, 0, 0, 0 });
-        DrawRectangleGradientV(0, SCREEN_HEIGHT - 120, SCREEN_WIDTH, 120, Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 160 });
     }
 }
 

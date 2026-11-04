@@ -1,40 +1,10 @@
 {
   "hour_duration_seconds": 60.0,
   "nights": [
-    {
-      "night": 1,
-      "bear_ai": 0,
-      "rabbit_ai": 3,
-      "chicken_ai": 1,
-      "fox_ai": 0
-    },
-    {
-      "night": 2,
-      "bear_ai": 0,
-      "rabbit_ai": 5,
-      "chicken_ai": 3,
-      "fox_ai": 1
-    },
-    {
-      "night": 3,
-      "bear_ai": 1,
-      "rabbit_ai": 7,
-      "chicken_ai": 5,
-      "fox_ai": 2
-    },
-    {
-      "night": 4,
-      "bear_ai": 2,
-      "rabbit_ai": 10,
-      "chicken_ai": 7,
-      "fox_ai": 5
-    },
-    {
-      "night": 5,
-      "bear_ai": 3,
-      "rabbit_ai": 12,
-      "chicken_ai": 10,
-      "fox_ai": 7
-    }
+    { "night": 1, "bear_ai": 0, "rabbit_ai": 3, "chicken_ai": 3, "fox_ai": 0 },
+    { "night": 2, "bear_ai": 5, "rabbit_ai": 6, "chicken_ai": 6, "fox_ai": 0 },
+    { "night": 3, "bear_ai": 10, "rabbit_ai": 11, "chicken_ai": 11, "fox_ai": 8 },
+    { "night": 4, "bear_ai": 15, "rabbit_ai": 15, "chicken_ai": 15, "fox_ai": 14 },
+    { "night": 5, "bear_ai": 16, "rabbit_ai": 16, "chicken_ai": 16, "fox_ai": 16 }
   ]
 }

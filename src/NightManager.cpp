@@ -18,11 +18,11 @@ void NightManager::Initialize() {
 
 void NightManager::SetupDefaultDifficulties() {
     m_nightConfigs = {
-        { 1, 0, 3, 1, 0 },
-        { 2, 0, 5, 3, 1 },
-        { 3, 1, 7, 5, 2 },
-        { 4, 2, 10, 7, 5 },
-        { 5, 3, 12, 10, 7 }
+        { 1, 0, 3, 3, 0 },
+        { 2, 5, 6, 6, 0 },
+        { 3, 10, 11, 11, 8 },
+        { 4, 15, 15, 15, 14 },
+        { 5, 16, 16, 16, 16 }
     };
 }
 

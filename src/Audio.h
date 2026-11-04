@@ -13,16 +13,26 @@ enum class SoundID {
     Door,
     LightBuzz,
     CameraSwitch,
+    CameraFlip,
     Footsteps,
     Jumpscare,
+    WindowScare,
     AnimatronicMove,
     FoxKnock,
     PowerOut,
     PowerOutMusic,
     Kitchen,
     Chime6AM,
+    Cheer6AM,
+    PirateSong,
     Blip,
     FanHum,
+    MenuMusic,
+    PhoneCall1,
+    PhoneCall2,
+    PhoneCall3,
+    PhoneCall4,
+    PhoneCall5,
     COUNT
 };
 
@@ -64,15 +74,22 @@ public:
     void SetLightBuzz(bool active);
     void PlayFootsteps(float pan = 0.5f);
     void PlayJumpscare();
+    void PlayWindowScare();
     void PlayAmbient(bool active = true);
+    void PlayMenuMusic(bool active = true);
     void PlayFanHum(bool active = true);
     void PlayCameraSwitch();
+    void PlayCameraFlip();
+    void PlayPhoneCall(int night);
+    void StopPhoneCall();
     void PlayAnimatronicMovement(float pan = 0.5f);
     void PlayFoxKnock();
     void PlayPowerOut();
     void PlayPowerOutMusic(bool active = true);
     void PlayKitchenAudio();
     void PlayChime6AM();
+    void PlayCheer6AM();
+    void PlayPirateSong();
     void PlayBlip();
     void StopAllSounds();
 };

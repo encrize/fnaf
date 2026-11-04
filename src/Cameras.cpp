@@ -3,6 +3,7 @@
 #include "AssetManager.h"
 #include <raylib.h>
 #include <cmath>
+#include <algorithm>
 #include <iostream>
 
 namespace FNAF {
@@ -13,14 +14,63 @@ Cameras::Cameras() {
 }
 
 void Cameras::LoadAssets(AssetManager& assets) {
-    m_camTextures[CameraID::CAM_1A] = assets.GetTexture("assets/images/cam_1a.png");
-    m_camTextures[CameraID::CAM_1B] = assets.GetTexture("assets/images/cam_1b.png");
-    m_camTextures[CameraID::CAM_1C] = assets.GetTexture("assets/images/cam_1c.png");
-    m_camTextures[CameraID::CAM_2A] = assets.GetTexture("assets/images/cam_2a.png");
-    m_camTextures[CameraID::CAM_3]  = assets.GetTexture("assets/images/cam_3.png");
-    m_camTextures[CameraID::CAM_4A] = assets.GetTexture("assets/images/cam_4a.png");
-    m_camTextures[CameraID::CAM_5]  = assets.GetTexture("assets/images/cam_5.png");
-    m_camTextures[CameraID::CAM_7]  = assets.GetTexture("assets/images/cam_7.png");
+    m_mapTex = assets.GetTexture("assets/images/cams/map.png");
+
+    m_flipFrames.clear();
+    for (int i = 1; i <= 10; ++i) {
+        m_flipFrames.push_back(assets.GetTexture("assets/images/flip/" + std::to_string(i) + ".png"));
+    }
+
+    m_glitchFrames.clear();
+    const char* glitches[] = { "430.png", "434.png", "435.png", "436.png", "437.png", "438.png", "439.png" };
+    for (const char* g : glitches) {
+        m_glitchFrames.push_back(assets.GetTexture(std::string("assets/images/cams/Glitch/") + g));
+    }
+
+    // Stage
+    m_stageAll = assets.GetTexture("assets/images/cams/Stage/19.png");
+    m_stageBonnieGone = assets.GetTexture("assets/images/cams/Stage/224.png");
+    m_stageChicaGone = assets.GetTexture("assets/images/cams/Stage/484.png");
+    m_stageEmpty = assets.GetTexture("assets/images/cams/Stage/68.png");
+
+    // Dining
+    m_diningEmpty = assets.GetTexture("assets/images/cams/Dining/90.png");
+    m_diningBonnie = assets.GetTexture("assets/images/cams/Dining/120.png");
+    m_diningChica = assets.GetTexture("assets/images/cams/Dining/215.png");
+    m_diningFreddy = assets.GetTexture("assets/images/cams/Dining/48.png");
+
+    // Cove
+    m_coveClosed = assets.GetTexture("assets/images/cams/Cove/66.png");
+    m_covePeeking = assets.GetTexture("assets/images/cams/Cove/240.png");
+    m_coveOpen = assets.GetTexture("assets/images/cams/Cove/211.png");
+
+    // West Hall & Corner
+    m_westHallEmpty = assets.GetTexture("assets/images/cams/WestHall/206.png");
+    m_westHallBonnie = assets.GetTexture("assets/images/cams/WestHall/188.png");
+    m_westCornerEmpty = assets.GetTexture("assets/images/cams/WestHall/336.png");
+    m_westCornerBonnie = assets.GetTexture("assets/images/cams/WestHall/549.png");
+
+    // Closet
+    m_closetEmpty = assets.GetTexture("assets/images/cams/Closet/62.png");
+    m_closetBonnie = assets.GetTexture("assets/images/cams/Closet/190.png");
+
+    // East Hall & Corner
+    m_eastHallEmpty = assets.GetTexture("assets/images/cams/EastHall/67.png");
+    m_eastHallChica = assets.GetTexture("assets/images/cams/EastHall/486.png");
+    m_eastCornerEmpty = assets.GetTexture("assets/images/cams/EastHall/546.png");
+    m_eastCornerChica = assets.GetTexture("assets/images/cams/EastHall/571.png");
+    m_eastCornerFreddy = assets.GetTexture("assets/images/cams/EastHall/554.png");
+
+    // Backstage
+    m_backstageEmpty = assets.GetTexture("assets/images/cams/Backstage/354.png");
+    m_backstageBonnie = assets.GetTexture("assets/images/cams/Backstage/205.png");
+
+    // Restroom
+    m_restroomEmpty = assets.GetTexture("assets/images/cams/Restroom/41.png");
+    m_restroomChica = assets.GetTexture("assets/images/cams/Restroom/219.png");
+
+    // Kitchen
+    m_kitchenTex = assets.GetTexture("assets/images/cams/Kitchen/kitchen.png");
 }
 
 void Cameras::Reset() {
@@ -29,11 +79,11 @@ void Cameras::Reset() {
     m_monitorProgress = 0.0f;
     m_staticTimer = 0.0f;
     m_switchStaticTimer = 0.0f;
+    m_glitchFrame = 0;
 }
 
 void Cameras::SetupMapButtons() {
     m_mapButtons.clear();
-    // Layout in bottom right: Base origin (900, 360)
     float bx = 900.0f;
     float by = 350.0f;
 
@@ -49,14 +99,13 @@ void Cameras::SetupMapButtons() {
     m_mapButtons.push_back({ CameraID::CAM_4A, Rectangle{ bx + 205, by + 200, 55, 30 }, "4A" });
     m_mapButtons.push_back({ CameraID::CAM_4B, Rectangle{ bx + 205, by + 250, 55, 30 }, "4B" });
 
-    // Monitor flip hover bar at bottom of screen
     m_monitorFlipBar = Rectangle{ 340.0f, SCREEN_HEIGHT - 45.0f, 600.0f, 40.0f };
 }
 
 void Cameras::SetCurrentCamera(CameraID cam, Audio& audio) {
     if (m_currentCam != cam) {
         m_currentCam = cam;
-        m_switchStaticTimer = 0.25f; // burst of static
+        m_switchStaticTimer = 0.25f;
         audio.PlayCameraSwitch();
     }
 }
@@ -64,7 +113,7 @@ void Cameras::SetCurrentCamera(CameraID cam, Audio& audio) {
 void Cameras::ToggleMonitor(Audio& audio) {
     m_monitorUp = !m_monitorUp;
     m_switchStaticTimer = 0.15f;
-    audio.PlayCameraSwitch();
+    audio.PlayCameraFlip();
 }
 
 void Cameras::ForceMonitorDown() {
@@ -78,7 +127,6 @@ void Cameras::HandleInput(bool powerDepleted, Audio& audio) {
         return;
     }
 
-    // Toggle monitor with SPACE or clicking the bottom flip bar
     if (IsKeyPressed(KEY_SPACE)) {
         ToggleMonitor(audio);
     }
@@ -88,7 +136,6 @@ void Cameras::HandleInput(bool powerDepleted, Audio& audio) {
         ToggleMonitor(audio);
     }
 
-    // Camera switching via map buttons or number keys
     if (m_monitorUp && m_monitorProgress > 0.8f) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             for (const auto& btn : m_mapButtons) {
@@ -99,7 +146,6 @@ void Cameras::HandleInput(bool powerDepleted, Audio& audio) {
             }
         }
 
-        // Hotkeys 1 to 9
         if (IsKeyPressed(KEY_ONE))   SetCurrentCamera(CameraID::CAM_1A, audio);
         if (IsKeyPressed(KEY_TWO))   SetCurrentCamera(CameraID::CAM_1B, audio);
         if (IsKeyPressed(KEY_THREE)) SetCurrentCamera(CameraID::CAM_1C, audio);
@@ -118,7 +164,6 @@ void Cameras::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
         return;
     }
 
-    // Monitor flip animation (opens/closes in ~0.2s)
     float target = m_monitorUp ? 1.0f : 0.0f;
     m_monitorProgress += (target - m_monitorProgress) * std::min(1.0f, dt * 10.0f);
 
@@ -127,8 +172,9 @@ void Cameras::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
         m_switchStaticTimer -= dt;
     }
 
-    // Audio cue for kitchen if Bear or Chicken is in Kitchen
-    // (Kitchen is handled through Game update)
+    if (!m_glitchFrames.empty()) {
+        m_glitchFrame = (static_cast<int>(m_staticTimer * 15.0f)) % m_glitchFrames.size();
+    }
 }
 
 void Cameras::Render(float /*officeCameraX*/,
@@ -137,9 +183,7 @@ void Cameras::Render(float /*officeCameraX*/,
                      LocationID chickenLoc,
                      FoxState foxState,
                      bool crtEnabled) {
-    // If monitor is completely down, only render the flip bar
     if (m_monitorProgress <= 0.01f) {
-        // Bottom flip bar
         Vector2 mousePos = GetMousePosition();
         bool hovering = CheckCollisionPointRec(mousePos, m_monitorFlipBar);
         Color barColor = hovering ? Color{ 80, 160, 220, 160 } : Color{ 40, 40, 50, 140 };
@@ -149,304 +193,148 @@ void Cameras::Render(float /*officeCameraX*/,
         return;
     }
 
-    // Render monitor screen sliding up from bottom
+    // Monitor Flip Animation Frames if transitioning
+    if (m_monitorProgress < 0.95f && !m_flipFrames.empty()) {
+        int frameIdx = std::clamp(static_cast<int>(m_monitorProgress * (m_flipFrames.size() - 1)), 0, static_cast<int>(m_flipFrames.size() - 1));
+        Texture2D flipTex = m_flipFrames[frameIdx];
+        if (flipTex.id != 0) {
+            Rectangle src{ 0, 0, (float)flipTex.width, (float)flipTex.height };
+            Rectangle dst{ 0, 0, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
+            DrawTexturePro(flipTex, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
+            return;
+        }
+    }
+
     float monitorY = (1.0f - m_monitorProgress) * SCREEN_HEIGHT;
 
-    // Monitor Background Frame
-    DrawRectangle(0, monitorY, SCREEN_WIDTH, SCREEN_HEIGHT, Color{ 12, 14, 18, 255 });
+    // 1. Select Camera Background Texture based on animatronic state
+    Texture2D camBg{};
 
-    // Room Rendering based on current active camera
     if (m_currentCam == CameraID::CAM_6) {
-        // Kitchen: Audio Only Mode!
+        // Kitchen: Audio Only
         DrawRectangle(0, monitorY, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
         DrawText("- CAMERA DISABLED -", SCREEN_WIDTH / 2 - 160, monitorY + 280, 28, Color{ 200, 200, 60, 255 });
         DrawText("AUDIO ONLY", SCREEN_WIDTH / 2 - 80, monitorY + 330, 22, Color{ 180, 180, 180, 255 });
-
-        // Audio visualizer pulses
         float pulse = std::sin(m_staticTimer * 8.0f) * 15.0f;
         DrawCircle(SCREEN_WIDTH / 2, monitorY + 390, 25 + pulse, Color{ 100, 100, 120, 100 });
         DrawCircle(SCREEN_WIDTH / 2, monitorY + 390, 12, Color{ 220, 220, 240, 255 });
     } else {
-        // Render stylized room environment or loaded texture background
-        float rw = SCREEN_WIDTH;
-        float rh = SCREEN_HEIGHT;
-
-        auto it = m_camTextures.find(m_currentCam);
-        if (it != m_camTextures.end() && it->second.id != 0) {
-            DrawTexture(it->second, 0, monitorY, WHITE);
-        } else {
-            // Base room walls & floor fallback
-            DrawRectangle(0, monitorY, rw, rh * 0.65f, Color{ 24, 26, 32, 255 });
-            DrawRectangle(0, monitorY + rh * 0.65f, rw, rh * 0.35f, Color{ 15, 16, 20, 255 });
-        }
-
-        // Room specific geometry and animatronics
         switch (m_currentCam) {
-            case CameraID::CAM_1A: { // Show Stage
-                // Star backdrop & wooden stage
-                DrawRectangle(140, monitorY + 80, rw - 280, rh * 0.5f, Color{ 35, 20, 45, 255 });
-                DrawRectangle(100, monitorY + rh * 0.45f, rw - 200, 140, Color{ 55, 40, 25, 255 });
-                DrawText("SHOW STAGE", 160, monitorY + 100, 20, Color{ 120, 100, 140, 180 });
-
-                // Animatronics on stage
-                // Rabbit (Left)
-                if (rabbitLoc == LocationID::ShowStage) {
-                    float bx = 320.0f;
-                    float by = monitorY + 200.0f;
-                    DrawRectangle(bx + 10, by + 60, 60, 130, Color{ 60, 50, 90, 255 });
-                    DrawCircle(bx + 40, by + 40, 28, Color{ 70, 60, 100, 255 });
-                    DrawRectangle(bx + 24, by - 25, 10, 45, Color{ 70, 60, 100, 255 });
-                    DrawRectangle(bx + 46, by - 25, 10, 45, Color{ 70, 60, 100, 255 });
-                    DrawCircle(bx + 32, by + 36, 4, Color{ 220, 220, 240, 255 });
-                    DrawCircle(bx + 48, by + 36, 4, Color{ 220, 220, 240, 255 });
-                }
-
-                // Bear (Center)
-                if (bearLoc == LocationID::ShowStage) {
-                    float bx = 580.0f;
-                    float by = monitorY + 180.0f;
-                    DrawRectangle(bx + 10, by + 70, 80, 140, Color{ 75, 45, 25, 255 });
-                    DrawCircle(bx + 50, by + 45, 34, Color{ 85, 55, 30, 255 });
-                    // Bear ears & top hat
-                    DrawCircle(bx + 20, by + 25, 12, Color{ 85, 55, 30, 255 });
-                    DrawCircle(bx + 80, by + 25, 12, Color{ 85, 55, 30, 255 });
-                    DrawRectangle(bx + 35, by - 10, 30, 25, BLACK);
-                    DrawRectangle(bx + 25, by + 12, 50, 6, BLACK);
-                    // Glowing eyes
-                    DrawCircle(bx + 40, by + 42, 5, Color{ 220, 240, 255, 255 });
-                    DrawCircle(bx + 60, by + 42, 5, Color{ 220, 240, 255, 255 });
-                }
-
-                // Chicken (Right)
-                if (chickenLoc == LocationID::ShowStage) {
-                    float bx = 840.0f;
-                    float by = monitorY + 205.0f;
-                    DrawRectangle(bx + 10, by + 60, 60, 125, Color{ 85, 75, 30, 255 });
-                    DrawCircle(bx + 40, by + 40, 28, Color{ 95, 85, 35, 255 });
-                    DrawTriangle(Vector2{ bx + 40, by + 50 }, Vector2{ bx + 32, by + 42 }, Vector2{ bx + 48, by + 42 }, Color{ 220, 120, 20, 255 });
-                    DrawCircle(bx + 32, by + 34, 4, Color{ 240, 240, 250, 255 });
-                    DrawCircle(bx + 48, by + 34, 4, Color{ 240, 240, 250, 255 });
-                }
-                break;
-            }
-
-            case CameraID::CAM_1C: { // Pirate Cove
-                // Curtains and Out of Order sign
-                float cx = 400.0f;
-                float cy = monitorY + 120.0f;
-                // Purple star curtains
-                DrawRectangle(cx, cy, 380, 320, Color{ 40, 20, 50, 255 });
-                DrawRectangleLinesEx(Rectangle{ cx, cy, 380, 320 }, 6, Color{ 70, 45, 90, 255 });
-                DrawText("OUT OF ORDER", cx + 110, cy + 280, 18, Color{ 180, 150, 80, 255 });
-
-                if (foxState == FoxState::Hidden) {
-                    // Closed curtains
-                    DrawLineEx(Vector2{ cx + 190, cy }, Vector2{ cx + 190, cy + 270 }, 4, Color{ 20, 10, 25, 255 });
-                } else if (foxState == FoxState::Watching) {
-                    // Peeking out
-                    DrawRectangle(cx + 160, cy + 60, 60, 180, Color{ 10, 10, 15, 255 });
-                    DrawCircle(cx + 190, cy + 120, 22, Color{ 110, 45, 30, 255 });
-                    DrawCircle(cx + 182, cy + 116, 4, Color{ 240, 230, 100, 255 });
-                    DrawCircle(cx + 198, cy + 116, 4, Color{ 240, 230, 100, 255 });
-                } else if (foxState == FoxState::Preparing) {
-                    // Standing outside curtain
-                    DrawRectangle(cx + 110, cy + 50, 160, 210, Color{ 15, 12, 20, 255 });
-                    DrawRectangle(cx + 160, cy + 120, 60, 120, Color{ 100, 40, 25, 255 });
-                    DrawCircle(cx + 190, cy + 90, 28, Color{ 120, 45, 30, 255 });
-                    DrawTriangle(Vector2{ cx + 170, cy + 60 }, Vector2{ cx + 160, cy + 85 }, Vector2{ cx + 180, cy + 85 }, Color{ 120, 45, 30, 255 });
-                    DrawTriangle(Vector2{ cx + 210, cy + 60 }, Vector2{ cx + 200, cy + 85 }, Vector2{ cx + 220, cy + 85 }, Color{ 120, 45, 30, 255 });
-                    DrawCircle(cx + 182, cy + 86, 5, Color{ 255, 240, 120, 255 });
-                    DrawCircle(cx + 198, cy + 86, 5, Color{ 255, 240, 120, 255 });
+            case CameraID::CAM_1A: // Show Stage
+                if (rabbitLoc != LocationID::ShowStage && chickenLoc != LocationID::ShowStage && bearLoc != LocationID::ShowStage) {
+                    camBg = m_stageEmpty;
+                } else if (rabbitLoc != LocationID::ShowStage && chickenLoc != LocationID::ShowStage) {
+                    camBg = m_stageChicaGone;
+                } else if (rabbitLoc != LocationID::ShowStage) {
+                    camBg = m_stageBonnieGone;
                 } else {
-                    // Curtains wide open, FOXY GONE!
-                    DrawRectangle(cx + 70, cy + 40, 240, 230, Color{ 10, 10, 12, 255 });
-                    DrawText("IT'S ME", cx + 140, cy + 120, 26, Color{ 180, 40, 40, 220 });
+                    camBg = m_stageAll;
                 }
                 break;
-            }
 
-            case CameraID::CAM_1B: { // Dining Area
-                // Tables with checkered cloths
-                for (int t = 0; t < 3; ++t) {
-                    float tx = 200.0f + t * 280.0f;
-                    float ty = monitorY + 320.0f;
-                    DrawRectangle(tx, ty, 220, 90, Color{ 45, 45, 52, 255 });
-                    DrawRectangle(tx + 20, ty - 10, 180, 20, Color{ 180, 180, 190, 255 });
-                }
-                // Animatronics in Dining Area
-                if (rabbitLoc == LocationID::DiningArea) {
-                    DrawCircle(320, monitorY + 280, 30, Color{ 60, 50, 90, 255 });
-                    DrawCircle(312, monitorY + 275, 4, Color{ 220, 220, 240, 255 });
-                    DrawCircle(328, monitorY + 275, 4, Color{ 220, 220, 240, 255 });
-                }
-                if (chickenLoc == LocationID::DiningArea) {
-                    DrawCircle(780, monitorY + 280, 30, Color{ 85, 75, 30, 255 });
-                    DrawCircle(772, monitorY + 275, 4, Color{ 240, 240, 250, 255 });
-                    DrawCircle(788, monitorY + 275, 4, Color{ 240, 240, 250, 255 });
-                }
-                if (bearLoc == LocationID::DiningArea) {
-                    DrawCircle(560, monitorY + 240, 35, Color{ 75, 45, 25, 255 });
-                    DrawCircle(550, monitorY + 235, 5, Color{ 220, 240, 255, 255 });
-                    DrawCircle(570, monitorY + 235, 5, Color{ 220, 240, 255, 255 });
-                }
+            case CameraID::CAM_1B: // Dining Area
+                if (bearLoc == LocationID::DiningArea) camBg = m_diningFreddy;
+                else if (chickenLoc == LocationID::DiningArea) camBg = m_diningChica;
+                else if (rabbitLoc == LocationID::DiningArea) camBg = m_diningBonnie;
+                else camBg = m_diningEmpty;
                 break;
-            }
 
-            case CameraID::CAM_2A: { // West Hall
-                DrawRectangle(350, monitorY + 100, 480, 380, Color{ 20, 22, 28, 255 });
-                // If Fox is running down West Hall!
-                if (foxState == FoxState::Running) {
-                    float fx = 560.0f;
-                    float fy = monitorY + 220.0f;
-                    DrawCircle(fx, fy, 40, Color{ 120, 45, 30, 255 });
-                    DrawRectangle(fx - 25, fy + 35, 50, 90, Color{ 100, 40, 25, 255 });
-                    DrawCircle(fx - 12, fy - 6, 6, Color{ 255, 240, 100, 255 });
-                    DrawCircle(fx + 12, fy - 6, 6, Color{ 255, 240, 100, 255 });
-                } else if (rabbitLoc == LocationID::WestHall) {
-                    DrawCircle(580, monitorY + 260, 36, Color{ 60, 50, 90, 255 });
-                    DrawCircle(570, monitorY + 252, 5, Color{ 220, 220, 240, 255 });
-                    DrawCircle(590, monitorY + 252, 5, Color{ 220, 220, 240, 255 });
-                }
+            case CameraID::CAM_1C: // Pirate Cove
+                if (foxState == FoxState::Hidden) camBg = m_coveClosed;
+                else if (foxState == FoxState::Watching) camBg = m_covePeeking;
+                else camBg = m_coveOpen;
                 break;
-            }
 
-            case CameraID::CAM_2B: { // West Hall Corner
-                DrawRectangle(250, monitorY + 80, 680, 420, Color{ 18, 20, 26, 255 });
-                if (rabbitLoc == LocationID::WestHallCorner) {
-                    // Rabbit right up close to camera!
-                    float rx = 480.0f;
-                    float ry = monitorY + 160.0f;
-                    DrawCircle(rx, ry, 75, Color{ 70, 60, 105, 255 });
-                    DrawRectangle(rx - 45, ry - 140, 25, 100, Color{ 70, 60, 105, 255 });
-                    DrawRectangle(rx + 20, ry - 140, 25, 100, Color{ 70, 60, 105, 255 });
-                    DrawCircle(rx - 25, ry - 15, 14, Color{ 230, 230, 245, 255 });
-                    DrawCircle(rx + 25, ry - 15, 14, Color{ 230, 230, 245, 255 });
-                    DrawCircle(rx - 25, ry - 15, 6, Color{ 200, 30, 80, 255 });
-                    DrawCircle(rx + 25, ry - 15, 6, Color{ 200, 30, 80, 255 });
-                }
+            case CameraID::CAM_2A: // West Hall
+                if (rabbitLoc == LocationID::WestHall) camBg = m_westHallBonnie;
+                else camBg = m_westHallEmpty;
                 break;
-            }
 
-            case CameraID::CAM_4A: { // East Hall
-                DrawRectangle(350, monitorY + 100, 480, 380, Color{ 22, 22, 26, 255 });
-                if (chickenLoc == LocationID::EastHall) {
-                    DrawCircle(580, monitorY + 260, 36, Color{ 85, 75, 30, 255 });
-                    DrawCircle(570, monitorY + 252, 5, Color{ 240, 240, 250, 255 });
-                    DrawCircle(590, monitorY + 252, 5, Color{ 240, 240, 250, 255 });
-                } else if (bearLoc == LocationID::EastHall) {
-                    DrawCircle(580, monitorY + 260, 38, Color{ 75, 45, 25, 255 });
-                    DrawCircle(570, monitorY + 252, 5, Color{ 220, 240, 255, 255 });
-                    DrawCircle(590, monitorY + 252, 5, Color{ 220, 240, 255, 255 });
-                }
+            case CameraID::CAM_2B: // West Hall Corner
+                if (rabbitLoc == LocationID::WestHallCorner) camBg = m_westCornerBonnie;
+                else camBg = m_westCornerEmpty;
                 break;
-            }
 
-            case CameraID::CAM_4B: { // East Hall Corner
-                DrawRectangle(250, monitorY + 80, 680, 420, Color{ 20, 18, 22, 255 });
-                if (chickenLoc == LocationID::EastHallCorner) {
-                    float cx = 520.0f;
-                    float cy = monitorY + 180.0f;
-                    DrawCircle(cx, cy, 75, Color{ 95, 85, 35, 255 });
-                    DrawTriangle(Vector2{ cx, cy + 45 }, Vector2{ cx - 35, cy + 5 }, Vector2{ cx + 35, cy + 5 }, Color{ 230, 130, 20, 255 });
-                    DrawCircle(cx - 24, cy - 15, 14, Color{ 240, 240, 255, 255 });
-                    DrawCircle(cx + 24, cy - 15, 14, Color{ 240, 240, 255, 255 });
-                    DrawCircle(cx - 24, cy - 15, 6, Color{ 200, 30, 20, 255 });
-                    DrawCircle(cx + 24, cy - 15, 6, Color{ 200, 30, 20, 255 });
-                } else if (bearLoc == LocationID::EastHallCorner) {
-                    float bx = 520.0f;
-                    float by = monitorY + 180.0f;
-                    DrawCircle(bx, by, 75, Color{ 80, 48, 26, 255 });
-                    DrawCircle(bx - 24, by - 15, 14, Color{ 220, 240, 255, 255 });
-                    DrawCircle(bx + 24, by - 15, 14, Color{ 220, 240, 255, 255 });
-                    DrawCircle(bx - 24, by - 15, 5, WHITE);
-                    DrawCircle(bx + 24, by - 15, 5, WHITE);
-                }
+            case CameraID::CAM_3: // Supply Closet
+                if (rabbitLoc == LocationID::SupplyCloset) camBg = m_closetBonnie;
+                else camBg = m_closetEmpty;
                 break;
-            }
 
-            case CameraID::CAM_5: { // Backstage
-                DrawRectangle(200, monitorY + 80, 780, 420, Color{ 22, 20, 25, 255 });
-                DrawText("SPARE PARTS", 240, monitorY + 110, 18, Color{ 100, 100, 110, 200 });
-                // Shelves with endoskeleton
-                DrawRectangle(650, monitorY + 180, 80, 160, Color{ 70, 72, 78, 255 });
-                if (rabbitLoc == LocationID::Backstage) {
-                    DrawCircle(460, monitorY + 240, 45, Color{ 60, 50, 90, 255 });
-                    DrawCircle(448, monitorY + 232, 6, Color{ 220, 220, 240, 255 });
-                    DrawCircle(472, monitorY + 232, 6, Color{ 220, 220, 240, 255 });
-                }
+            case CameraID::CAM_4A: // East Hall
+                if (chickenLoc == LocationID::EastHall) camBg = m_eastHallChica;
+                else camBg = m_eastHallEmpty;
                 break;
-            }
 
-            case CameraID::CAM_3: { // Supply Closet
-                DrawRectangle(300, monitorY + 90, 560, 400, Color{ 20, 24, 22, 255 });
-                DrawText("SUPPLY CLOSET", 330, monitorY + 120, 18, Color{ 90, 110, 100, 200 });
-                if (rabbitLoc == LocationID::SupplyCloset) {
-                    DrawCircle(540, monitorY + 250, 45, Color{ 60, 50, 90, 255 });
-                    DrawCircle(528, monitorY + 242, 6, Color{ 220, 220, 240, 255 });
-                    DrawCircle(552, monitorY + 242, 6, Color{ 220, 220, 240, 255 });
-                }
+            case CameraID::CAM_4B: // East Hall Corner
+                if (bearLoc == LocationID::EastHallCorner) camBg = m_eastCornerFreddy;
+                else if (chickenLoc == LocationID::EastHallCorner) camBg = m_eastCornerChica;
+                else camBg = m_eastCornerEmpty;
                 break;
-            }
 
-            case CameraID::CAM_7: { // Restrooms
-                DrawRectangle(250, monitorY + 90, 680, 400, Color{ 24, 22, 28, 255 });
-                DrawText("RESTROOMS", 280, monitorY + 120, 18, Color{ 120, 100, 130, 200 });
-                if (chickenLoc == LocationID::Restrooms) {
-                    DrawCircle(540, monitorY + 250, 40, Color{ 85, 75, 30, 255 });
-                    DrawCircle(530, monitorY + 242, 6, Color{ 240, 240, 250, 255 });
-                    DrawCircle(550, monitorY + 242, 6, Color{ 240, 240, 250, 255 });
-                } else if (bearLoc == LocationID::Restrooms) {
-                    DrawCircle(540, monitorY + 250, 42, Color{ 75, 45, 25, 255 });
-                    DrawCircle(530, monitorY + 242, 6, Color{ 220, 240, 255, 255 });
-                    DrawCircle(550, monitorY + 242, 6, Color{ 220, 240, 255, 255 });
-                }
+            case CameraID::CAM_5: // Backstage
+                if (rabbitLoc == LocationID::Backstage) camBg = m_backstageBonnie;
+                else camBg = m_backstageEmpty;
                 break;
-            }
-            default: break;
+
+            case CameraID::CAM_7: // Restroom
+                if (chickenLoc == LocationID::Restrooms) camBg = m_restroomChica;
+                else camBg = m_restroomEmpty;
+                break;
+
+            default:
+                break;
+        }
+
+        if (camBg.id != 0) {
+            Rectangle src{ 0, 0, (float)camBg.width, (float)camBg.height };
+            Rectangle dst{ 0, monitorY, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
+            DrawTexturePro(camBg, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
+        } else {
+            DrawRectangle(0, monitorY, SCREEN_WIDTH, SCREEN_HEIGHT, Color{ 20, 22, 28, 255 });
         }
     }
 
-    // Static Noise Overlay
-    int numSpecks = (m_switchStaticTimer > 0.0f) ? 1400 : 350;
-    for (int s = 0; s < numSpecks; ++s) {
-        int sx = GetRandomValue(0, SCREEN_WIDTH);
-        int sy = GetRandomValue(static_cast<int>(monitorY), SCREEN_HEIGHT);
-        int gray = GetRandomValue(100, 255);
-        DrawPixel(sx, sy, Color{ static_cast<unsigned char>(gray), static_cast<unsigned char>(gray), static_cast<unsigned char>(gray), 140 });
+    // 2. Glitch / Static Overlay
+    if (!m_glitchFrames.empty()) {
+        Texture2D gTex = m_glitchFrames[m_glitchFrame];
+        if (gTex.id != 0) {
+            float alpha = (m_switchStaticTimer > 0.0f) ? 0.85f : 0.25f;
+            Rectangle src{ 0, 0, (float)gTex.width, (float)gTex.height };
+            Rectangle dst{ 0, monitorY, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
+            DrawTexturePro(gTex, src, dst, Vector2{ 0, 0 }, 0.0f, ColorAlpha(WHITE, alpha));
+        }
     }
 
-    // CRT Scanlines
+    // 3. CRT Scanlines
     if (crtEnabled) {
         for (int y = static_cast<int>(monitorY); y < SCREEN_HEIGHT; y += 4) {
-            DrawLine(0, y, SCREEN_WIDTH, y, Color{ 0, 0, 0, 50 });
+            DrawLine(0, y, SCREEN_WIDTH, y, Color{ 0, 0, 0, 45 });
         }
     }
 
-    // Camera Name & REC blinking indicator
+    // 4. Camera Name & REC indicator
     DrawText(GetCameraName(m_currentCam), 60, monitorY + 50, 24, Color{ 220, 220, 220, 255 });
-
     bool recBlink = (std::fmod(m_staticTimer, 1.0f) < 0.5f);
     if (recBlink) {
         DrawCircle(SCREEN_WIDTH - 120, monitorY + 60, 10, RED);
         DrawText("REC", SCREEN_WIDTH - 100, monitorY + 50, 22, RED);
     }
 
-    // Interactive Restaurant Map HUD in Bottom-Right
+    // 5. Interactive Surveillance Minimap in Bottom-Right
     float mapX = 900.0f;
     float mapY = monitorY + 340.0f;
-    DrawRectangle(mapX - 20, mapY - 20, 360, 360, Color{ 10, 12, 16, 220 });
-    DrawRectangleLinesEx(Rectangle{ mapX - 20, mapY - 20, 360, 360 }, 2, Color{ 50, 60, 75, 255 });
 
-    // Stylized restaurant floorplan outlines
-    DrawRectangleLines(mapX + 70, mapY + 20, 140, 120, Color{ 60, 75, 95, 255 }); // Dining/Stage
-    DrawRectangleLines(mapX + 110, mapY + 160, 60, 130, Color{ 60, 75, 95, 255 }); // Office Hallway
-    DrawText("YOU", mapX + 125, mapY + 300, 14, GREEN);
+    if (m_mapTex.id != 0) {
+        DrawTexture(m_mapTex, mapX - 20, mapY - 20, WHITE);
+    } else {
+        DrawRectangle(mapX - 20, mapY - 20, 360, 360, Color{ 10, 12, 16, 220 });
+        DrawRectangleLinesEx(Rectangle{ mapX - 20, mapY - 20, 360, 360 }, 2, Color{ 50, 60, 75, 255 });
+    }
 
-    // Map Buttons
     Vector2 mousePos = GetMousePosition();
     for (const auto& btn : m_mapButtons) {
         Rectangle drawRect = btn.rect;
-        drawRect.y += (monitorY);
+        drawRect.y += monitorY;
 
         bool isCurrent = (btn.id == m_currentCam);
         bool hovering = CheckCollisionPointRec(mousePos, drawRect);
@@ -459,7 +347,7 @@ void Cameras::Render(float /*officeCameraX*/,
         DrawText(btn.label, drawRect.x + 12, drawRect.y + 7, 16, textCol);
     }
 
-    // Bottom flip bar (to close monitor)
+    // Bottom close bar
     Rectangle closeBar = m_monitorFlipBar;
     closeBar.y = SCREEN_HEIGHT - 45.0f;
     bool hoveringClose = CheckCollisionPointRec(mousePos, closeBar);

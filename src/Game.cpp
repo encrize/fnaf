@@ -43,6 +43,9 @@ void Game::StartNightSession() {
     m_audio.StopAllSounds();
     m_audio.PlayAmbient(true);
     m_audio.PlayFanHum(true);
+    if (m_nightManager.GetCurrentNight() <= 5) {
+        m_audio.PlayPhoneCall(m_nightManager.GetCurrentNight());
+    }
 }
 
 void Game::ProcessInput() {
@@ -96,12 +99,14 @@ void Game::ProcessInput() {
             }
             break;
 
-        case GameState::NightIntro:
-            if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER) || m_nightIntroTimer > 2.5f) {
+        case GameState::NightIntro: {
+            float maxIntroTime = (m_nightManager.GetCurrentNight() == 1) ? 5.0f : 2.5f;
+            if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER) || m_nightIntroTimer > maxIntroTime) {
                 StartNightSession();
                 m_state = GameState::Playing;
             }
             break;
+        }
 
         case GameState::Playing: {
             bool monitorUp = m_cameras.IsMonitorUp();
@@ -110,11 +115,15 @@ void Game::ProcessInput() {
             // Mute / Skip phone call
             if (IsKeyPressed(KEY_M) || IsKeyPressed(KEY_ENTER)) {
                 m_nightManager.SkipPhoneCall();
+                m_audio.StopPhoneCall();
             }
 
             // Input routing to Office and Cameras
             m_cameras.HandleInput(powerDepleted, m_audio);
-            m_office.HandleInput(monitorUp, powerDepleted, m_audio);
+            m_office.HandleInput(monitorUp, powerDepleted,
+                                 m_animatronics.IsRabbitAtDoor(),
+                                 m_animatronics.IsChickenAtDoor(),
+                                 m_audio);
 
             if (IsKeyPressed(KEY_ESCAPE)) {
                 m_audio.StopAllSounds();
@@ -241,10 +250,23 @@ void Game::Render() {
 
         case GameState::NightIntro: {
             ClearBackground(BLACK);
-            std::string nStr = (m_nightManager.GetCurrentNight() == 7) ? "CUSTOM NIGHT" :
-                               ("NIGHT " + std::to_string(m_nightManager.GetCurrentNight()));
-            DrawText(nStr.c_str(), SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 - 40, 48, WHITE);
-            DrawText("12:00 AM", SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 + 30, 26, Color{ 160, 160, 170, 255 });
+            if (m_nightManager.GetCurrentNight() == 1 && m_nightIntroTimer < 3.5f) {
+                Texture2D news = m_assets.GetTexture("assets/images/newspaper.png");
+                if (news.id > 0) {
+                    DrawTexturePro(news,
+                                   Rectangle{ 0, 0, static_cast<float>(news.width), static_cast<float>(news.height) },
+                                   Rectangle{ 0, 0, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) },
+                                   Vector2{ 0, 0 }, 0.0f, WHITE);
+                } else {
+                    DrawText("NIGHT 1", SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 - 40, 48, WHITE);
+                    DrawText("12:00 AM", SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 + 30, 26, Color{ 160, 160, 170, 255 });
+                }
+            } else {
+                std::string nStr = (m_nightManager.GetCurrentNight() == 7) ? "CUSTOM NIGHT" :
+                                   ("NIGHT " + std::to_string(m_nightManager.GetCurrentNight()));
+                DrawText(nStr.c_str(), SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 - 40, 48, WHITE);
+                DrawText("12:00 AM", SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 + 30, 26, Color{ 160, 160, 170, 255 });
+            }
             DrawText("Press [ SPACE ] to Skip", SCREEN_WIDTH / 2 - 110, SCREEN_HEIGHT - 60, 18, GRAY);
             break;
         }

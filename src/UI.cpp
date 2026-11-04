@@ -14,10 +14,72 @@ UI::UI() {
 }
 
 void UI::LoadAssets(AssetManager& assets) {
-    m_bearPortrait = assets.GetTexture("assets/images/bear_portrait.png");
-    m_rabbitPortrait = assets.GetTexture("assets/images/rabbit_portrait.png");
-    m_chickenPortrait = assets.GetTexture("assets/images/chicken_portrait.png");
-    m_foxPortrait = assets.GetTexture("assets/images/fox_portrait.png");
+    m_bearPortrait    = assets.GetTexture("assets/images/custom_night/527.png");
+    m_rabbitPortrait  = assets.GetTexture("assets/images/custom_night/528.png");
+    m_chickenPortrait = assets.GetTexture("assets/images/custom_night/529.png");
+    m_foxPortrait     = assets.GetTexture("assets/images/custom_night/536.png");
+
+    m_newspaperTex    = assets.GetTexture("assets/images/newspaper.png");
+    m_gameFont        = assets.GetFont("assets/fonts/Pixeboy.ttf", 32);
+
+    // Menu Freddy Twitch Frames
+    m_menuFreddyFrames.clear();
+    const char* mFrames[] = {
+        "freddy.png", "12.png", "13.png", "14.png", "15.png",
+        "16.png", "17.png", "18.png", "20.png"
+    };
+    for (const char* mf : mFrames) {
+        m_menuFreddyFrames.push_back(assets.GetTexture(std::string("assets/images/menu/") + mf));
+    }
+
+    // Bonnie Jumpscare Frames
+    m_jumpscareBonnie.clear();
+    const char* bJumps[] = {
+        "291.png", "293.png", "294.png", "295.png", "296.png",
+        "297.png", "298.png", "299.png", "300.png", "301.png", "303.png"
+    };
+    for (const char* bf : bJumps) {
+        m_jumpscareBonnie.push_back(assets.GetTexture(std::string("assets/images/jumpscares/Bonnie/") + bf));
+    }
+
+    // Chica Jumpscare Frames
+    m_jumpscareChica.clear();
+    const char* cJumps[] = {
+        "65.png", "69.png", "228.png", "229.png", "230.png", "231.png",
+        "232.png", "233.png", "234.png", "235.png", "236.png", "237.png", "279.png", "281.png"
+    };
+    for (const char* cf : cJumps) {
+        m_jumpscareChica.push_back(assets.GetTexture(std::string("assets/images/jumpscares/Chica/") + cf));
+    }
+
+    // Foxy Jumpscare Frames
+    m_jumpscareFoxy.clear();
+    const char* fJumps[] = {
+        "242.png", "243.png", "396.png", "397.png", "398.png", "399.png", "400.png",
+        "401.png", "402.png", "403.png", "404.png", "405.png", "406.png", "407.png",
+        "408.png", "409.png", "410.png", "411.png", "412.png"
+    };
+    for (const char* ff : fJumps) {
+        m_jumpscareFoxy.push_back(assets.GetTexture(std::string("assets/images/jumpscares/Foxy/Jumpscare/") + ff));
+    }
+
+    // Freddy Jumpscare Frames
+    m_jumpscareFreddy.clear();
+    const char* frJumps[] = {
+        "307.png", "308.png", "309.png", "310.png", "311.png", "312.png", "313.png",
+        "314.png", "315.png", "316.png", "317.png", "318.png", "319.png", "320.png",
+        "321.png", "322.png", "323.png", "324.png", "325.png"
+    };
+    for (const char* frf : frJumps) {
+        m_jumpscareFreddy.push_back(assets.GetTexture(std::string("assets/images/jumpscares/Freddy/1/") + frf));
+    }
+
+    // Usage Bars
+    m_usageTex.clear();
+    for (int i = 1; i <= 5; ++i) {
+        std::string upath = "assets/images/usage/" + std::to_string(i) + ".png";
+        m_usageTex.push_back(assets.GetTexture(upath));
+    }
 }
 
 void UI::Reset() {
@@ -34,13 +96,33 @@ void UI::StartJumpscare() {
     m_jumpscareTimer = 0.0f;
 }
 
-void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*settings*/, Audio& /*audio*/) {
+void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*settings*/, Audio& audio) {
     m_menuTimer += GetFrameTime();
+    audio.PlayMenuMusic(true);
 
-    // Dark background with flickering CRT noise
-    ClearBackground(Color{ 8, 8, 12, 255 });
+    ClearBackground(Color{ 6, 6, 8, 255 });
 
-    // Procedural TV static noise in background
+    // Animated Freddy face twitch on the right
+    Texture2D freddyTex{};
+    if (!m_menuFreddyFrames.empty()) {
+        bool twitch = (GetRandomValue(0, 100) > 94);
+        int frameIdx = twitch ? GetRandomValue(1, static_cast<int>(m_menuFreddyFrames.size() - 1)) : 0;
+        freddyTex = m_menuFreddyFrames[frameIdx];
+    }
+
+    if (freddyTex.id != 0) {
+        float fScale = 0.85f;
+        float fw = freddyTex.width * fScale;
+        float fh = freddyTex.height * fScale;
+        float fx = SCREEN_WIDTH - fw - 20;
+        float fy = (SCREEN_HEIGHT - fh) * 0.5f;
+        DrawTexturePro(freddyTex,
+                       Rectangle{ 0, 0, (float)freddyTex.width, (float)freddyTex.height },
+                       Rectangle{ fx, fy, fw, fh },
+                       Vector2{ 0, 0 }, 0.0f, WHITE);
+    }
+
+    // Static Noise
     for (int i = 0; i < 400; ++i) {
         int x = GetRandomValue(0, SCREEN_WIDTH);
         int y = GetRandomValue(0, SCREEN_HEIGHT);
@@ -48,29 +130,10 @@ void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*
         DrawPixel(x, y, Color{ static_cast<unsigned char>(val), static_cast<unsigned char>(val), static_cast<unsigned char>(val), 180 });
     }
 
-    // Occasional Bear face twitching on the right
-    bool twitch = (GetRandomValue(0, 100) > 96);
-    float bx = SCREEN_WIDTH * 0.65f + (twitch ? GetRandomValue(-10, 10) : 0);
-    float by = SCREEN_HEIGHT * 0.35f + (twitch ? GetRandomValue(-5, 5) : 0);
-
-    // Menacing Bear silhouette
-    DrawCircle(bx, by, 120, Color{ 35, 22, 14, 255 });
-    DrawCircle(bx - 90, by - 70, 35, Color{ 35, 22, 14, 255 });
-    DrawCircle(bx + 90, by - 70, 35, Color{ 35, 22, 14, 255 });
-    // Top hat
-    DrawRectangle(bx - 40, by - 165, 80, 60, BLACK);
-    DrawRectangle(bx - 60, by - 110, 120, 12, BLACK);
-    // Glowing eyes
-    Color eyeColor = twitch ? Color{ 240, 240, 255, 255 } : Color{ 160, 190, 220, 255 };
-    DrawCircle(bx - 40, by - 15, 12, eyeColor);
-    DrawCircle(bx + 40, by - 15, 12, eyeColor);
-    DrawCircle(bx - 40, by - 15, 5, WHITE);
-    DrawCircle(bx + 40, by - 15, 5, WHITE);
-
     // Title
-    DrawText("FIVE NIGHTS", 90, 90, 54, WHITE);
-    DrawText("AT FREDDY'S", 90, 150, 54, Color{ 220, 50, 40, 255 });
-    DrawText("C++17 RAYLIB EDITION", 92, 215, 20, Color{ 140, 140, 150, 255 });
+    DrawText("FIVE NIGHTS", 90, 80, 56, WHITE);
+    DrawText("AT FREDDY'S", 90, 145, 56, Color{ 220, 50, 40, 255 });
+    DrawText("1987 EDITION", 92, 215, 20, Color{ 140, 140, 150, 255 });
 
     // Menu Options
     Vector2 mousePos = GetMousePosition();
@@ -110,8 +173,7 @@ void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*
         }
     }
 
-    // Version label
-    DrawText("v1.0.0 | Press F1 for Debug Mode", 90, SCREEN_HEIGHT - 45, 18, Color{ 100, 100, 110, 255 });
+    DrawText("Press F1 for Debug Overlay | Press ESC to Exit", 90, SCREEN_HEIGHT - 45, 18, Color{ 100, 100, 110, 255 });
 }
 
 bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings& /*settings*/, Audio& audio) {
@@ -131,12 +193,14 @@ bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings&
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if (CheckCollisionPointRec(mousePos, newGameRect)) {
             audio.PlayBlip();
+            audio.PlayMenuMusic(false);
             nightMgr.StartNight(1);
             state = GameState::NightIntro;
             return true;
         }
         if (CheckCollisionPointRec(mousePos, continueRect)) {
             audio.PlayBlip();
+            audio.PlayMenuMusic(false);
             nightMgr.StartNight(nightMgr.GetHighestUnlockedNight());
             state = GameState::NightIntro;
             return true;
@@ -153,14 +217,14 @@ bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings&
         }
         if (CheckCollisionPointRec(mousePos, exitRect)) {
             audio.PlayBlip();
-            return false; // Request exit
+            return false;
         }
     }
     return true;
 }
 
 void UI::RenderHUD(const NightManager& nightMgr, const Power& power, bool /*monitorUp*/) {
-    // 1. Top Right: Time & Night
+    // Top Right: Time & Night
     int hour = nightMgr.GetCurrentHour();
     std::string timeStr = (hour == 0) ? "12 AM" : (std::to_string(hour) + " AM");
     DrawText(timeStr.c_str(), SCREEN_WIDTH - 150, 30, 36, WHITE);
@@ -168,36 +232,35 @@ void UI::RenderHUD(const NightManager& nightMgr, const Power& power, bool /*moni
     std::string nightStr = "Night " + std::to_string(nightMgr.GetCurrentNight());
     DrawText(nightStr.c_str(), SCREEN_WIDTH - 150, 75, 24, Color{ 200, 200, 200, 255 });
 
-    // 2. Bottom Left: Power & Usage
+    // Bottom Left: Power & Usage
     int pVal = static_cast<int>(power.GetPower());
     std::string powerStr = "Power left: " + std::to_string(pVal) + "%";
     Color pCol = (pVal > 20) ? WHITE : ((pVal > 10) ? YELLOW : RED);
     DrawText(powerStr.c_str(), 45, SCREEN_HEIGHT - 95, 24, pCol);
 
     DrawText("Usage:", 45, SCREEN_HEIGHT - 60, 20, WHITE);
-    int usage = power.GetUsageLevel(); // 1 to 5
-    for (int i = 0; i < 4; ++i) {
-        Color barCol;
-        if (i == 0) barCol = GREEN;
-        else if (i == 1) barCol = LIME;
-        else if (i == 2) barCol = ORANGE;
-        else barCol = RED;
-
-        if (i < usage) {
-            DrawRectangle(125 + i * 22, SCREEN_HEIGHT - 60, 16, 20, barCol);
-        } else {
-            DrawRectangleLines(125 + i * 22, SCREEN_HEIGHT - 60, 16, 20, Color{ 80, 80, 90, 160 });
+    int usage = std::clamp(power.GetUsageLevel(), 1, 5);
+    if (usage - 1 < static_cast<int>(m_usageTex.size()) && m_usageTex[usage - 1].id > 0) {
+        DrawTexturePro(m_usageTex[usage - 1],
+                       Rectangle{ 0, 0, static_cast<float>(m_usageTex[usage - 1].width), static_cast<float>(m_usageTex[usage - 1].height) },
+                       Rectangle{ 120.0f, static_cast<float>(SCREEN_HEIGHT - 65), static_cast<float>(m_usageTex[usage - 1].width) * 1.3f, static_cast<float>(m_usageTex[usage - 1].height) * 1.3f },
+                       Vector2{ 0, 0 }, 0.0f, WHITE);
+    } else {
+        for (int i = 0; i < 5; ++i) {
+            Color barCol = (i == 0) ? GREEN : ((i == 1) ? LIME : ((i == 2) ? YELLOW : ((i == 3) ? ORANGE : RED)));
+            if (i < usage) {
+                DrawRectangle(125 + i * 22, SCREEN_HEIGHT - 60, 16, 20, barCol);
+            } else {
+                DrawRectangleLines(125 + i * 22, SCREEN_HEIGHT - 60, 16, 20, Color{ 80, 80, 90, 160 });
+            }
         }
     }
 }
 
 void UI::RenderPhoneSubtitles(const std::string& text) {
     if (text.empty()) return;
-
-    // Subtitle banner at top
     DrawRectangle(140, 20, SCREEN_WIDTH - 280, 75, Color{ 10, 10, 15, 220 });
     DrawRectangleLinesEx(Rectangle{ 140, 20, SCREEN_WIDTH - 280, 75 }, 2, Color{ 50, 50, 70, 255 });
-
     DrawText("[ PHONE CALL ]  (Press M or ENTER to Mute)", 160, 28, 14, YELLOW);
     DrawText(text.c_str(), 160, 50, 16, WHITE);
 }
@@ -208,85 +271,45 @@ void UI::RenderJumpscare(AnimatronicID attacker, float dt, Audio& audio) {
     }
     m_jumpscareTimer += dt;
 
-    // Violent screen shake
-    float shakeX = (GetRandomValue(-25, 25));
-    float shakeY = (GetRandomValue(-20, 20));
+    ClearBackground(BLACK);
 
-    // Strobe / blood-red flash
-    bool redFlash = (GetRandomValue(0, 10) > 6);
-    ClearBackground(redFlash ? Color{ 80, 10, 10, 255 } : Color{ 10, 10, 12, 255 });
-
-    // Attacker silhouette scaling rapidly into player face
-    float scale = 1.0f + m_jumpscareTimer * 1.8f;
-    float cx = SCREEN_WIDTH * 0.5f + shakeX;
-    float cy = SCREEN_HEIGHT * 0.55f + shakeY;
-
+    std::vector<Texture2D>* frames = nullptr;
     switch (attacker) {
-        case AnimatronicID::Rabbit: {
-            DrawCircle(cx, cy, 140 * scale, Color{ 70, 55, 100, 255 });
-            DrawRectangle(cx - 50 * scale, cy - 250 * scale, 30 * scale, 130 * scale, Color{ 70, 55, 100, 255 });
-            DrawRectangle(cx + 20 * scale, cy - 250 * scale, 30 * scale, 130 * scale, Color{ 70, 55, 100, 255 });
-            // Wide terrifying red pupils
-            DrawCircle(cx - 40 * scale, cy - 20 * scale, 18 * scale, Color{ 220, 30, 50, 255 });
-            DrawCircle(cx + 40 * scale, cy - 20 * scale, 18 * scale, Color{ 220, 30, 50, 255 });
-            // Open metallic jaw with sharp teeth
-            DrawRectangle(cx - 70 * scale, cy + 40 * scale, 140 * scale, 70 * scale, BLACK);
-            for (int t = 0; t < 6; ++t) {
-                DrawRectangle(cx - 60 * scale + t * 20 * scale, cy + 42 * scale, 12 * scale, 18 * scale, WHITE);
-            }
-            break;
-        }
-        case AnimatronicID::Chicken: {
-            DrawCircle(cx, cy, 145 * scale, Color{ 95, 85, 30, 255 });
-            // Orange beak agape
-            DrawTriangle(Vector2{ cx, cy + 80 * scale }, Vector2{ cx - 60 * scale, cy + 15 * scale }, Vector2{ cx + 60 * scale, cy + 15 * scale }, Color{ 230, 120, 20, 255 });
-            DrawCircle(cx - 45 * scale, cy - 25 * scale, 20 * scale, Color{ 240, 40, 30, 255 });
-            DrawCircle(cx + 45 * scale, cy - 25 * scale, 20 * scale, Color{ 240, 40, 30, 255 });
-            break;
-        }
-        case AnimatronicID::Fox: {
-            DrawCircle(cx, cy, 135 * scale, Color{ 120, 45, 25, 255 });
-            DrawTriangle(Vector2{ cx - 70 * scale, cy - 140 * scale }, Vector2{ cx - 110 * scale, cy - 50 * scale }, Vector2{ cx - 30 * scale, cy - 50 * scale }, Color{ 120, 45, 25, 255 });
-            DrawTriangle(Vector2{ cx + 70 * scale, cy - 140 * scale }, Vector2{ cx + 30 * scale, cy - 50 * scale }, Vector2{ cx + 110 * scale, cy - 50 * scale }, Color{ 120, 45, 25, 255 });
-            DrawCircle(cx - 40 * scale, cy - 20 * scale, 16 * scale, Color{ 255, 230, 80, 255 });
-            // Eyepatch on right eye
-            DrawRectangle(cx + 25 * scale, cy - 35 * scale, 35 * scale, 30 * scale, BLACK);
-            DrawRectangle(cx - 60 * scale, cy + 30 * scale, 120 * scale, 80 * scale, BLACK);
-            break;
-        }
-        case AnimatronicID::RareVisitor: {
-            DrawCircle(cx, cy, 150 * scale, Color{ 160, 135, 25, 255 });
-            DrawCircle(cx - 45 * scale, cy - 20 * scale, 24 * scale, BLACK);
-            DrawCircle(cx + 45 * scale, cy - 20 * scale, 24 * scale, BLACK);
-            DrawCircle(cx - 45 * scale, cy - 20 * scale, 4 * scale, WHITE);
-            DrawCircle(cx + 45 * scale, cy - 20 * scale, 4 * scale, WHITE);
-            DrawText("IT'S ME", cx - 80 * scale, cy + 80 * scale, static_cast<int>(32 * scale), Color{ 200, 30, 30, 255 });
-            break;
-        }
-        default: { // Bear
-            DrawCircle(cx, cy, 150 * scale, Color{ 80, 48, 25, 255 });
-            DrawCircle(cx - 100 * scale, cy - 90 * scale, 40 * scale, Color{ 80, 48, 25, 255 });
-            DrawCircle(cx + 100 * scale, cy - 90 * scale, 40 * scale, Color{ 80, 48, 25, 255 });
-            DrawRectangle(cx - 50 * scale, cy - 200 * scale, 100 * scale, 70 * scale, BLACK);
-            DrawCircle(cx - 45 * scale, cy - 20 * scale, 16 * scale, Color{ 200, 220, 255, 255 });
-            DrawCircle(cx + 45 * scale, cy - 20 * scale, 16 * scale, Color{ 200, 220, 255, 255 });
-            DrawRectangle(cx - 70 * scale, cy + 35 * scale, 140 * scale, 65 * scale, BLACK);
-            break;
+        case AnimatronicID::Rabbit:      frames = &m_jumpscareBonnie; break;
+        case AnimatronicID::Chicken:     frames = &m_jumpscareChica; break;
+        case AnimatronicID::Fox:         frames = &m_jumpscareFoxy; break;
+        case AnimatronicID::RareVisitor: frames = &m_jumpscareFreddy; break;
+        default:                         frames = &m_jumpscareFreddy; break;
+    }
+
+    if (frames && !frames->empty()) {
+        int idx = std::clamp(static_cast<int>(m_jumpscareTimer * 22.0f), 0, static_cast<int>(frames->size() - 1));
+        Texture2D fTex = (*frames)[idx];
+        if (fTex.id != 0) {
+            // Camera shake
+            float shakeX = (GetRandomValue(-15, 15));
+            float shakeY = (GetRandomValue(-10, 10));
+            Rectangle src{ 0, 0, (float)fTex.width, (float)fTex.height };
+            Rectangle dst{ shakeX, shakeY, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
+            DrawTexturePro(fTex, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
+            return;
         }
     }
+
+    // Fallback if texture empty
+    float shakeX = (GetRandomValue(-25, 25));
+    float shakeY = (GetRandomValue(-20, 20));
+    DrawCircle(SCREEN_WIDTH * 0.5f + shakeX, SCREEN_HEIGHT * 0.55f + shakeY, 150, RED);
 }
 
 void UI::RenderGameOver(float /*dt*/) {
     ClearBackground(BLACK);
-
-    // Static overlay
     for (int i = 0; i < 600; ++i) {
         int x = GetRandomValue(0, SCREEN_WIDTH);
         int y = GetRandomValue(0, SCREEN_HEIGHT);
         int v = GetRandomValue(30, 180);
         DrawPixel(x, y, Color{ static_cast<unsigned char>(v), static_cast<unsigned char>(v), static_cast<unsigned char>(v), 200 });
     }
-
     DrawText("GAME OVER", SCREEN_WIDTH / 2 - 190, 280, 64, Color{ 210, 30, 30, 255 });
     DrawText("Press [ ENTER ] to Retry Night", SCREEN_WIDTH / 2 - 160, 400, 22, WHITE);
     DrawText("Press [ ESC ] for Main Menu", SCREEN_WIDTH / 2 - 150, 440, 22, LIGHTGRAY);
@@ -311,11 +334,13 @@ void UI::Render6AM(float dt, Audio& audio) {
     if (m_sixAmTimer == 0.0f) {
         audio.PlayChime6AM();
     }
+    float prevTimer = m_sixAmTimer;
     m_sixAmTimer += dt;
+    if (prevTimer < 2.0f && m_sixAmTimer >= 2.0f) {
+        audio.PlayCheer6AM();
+    }
 
     ClearBackground(Color{ 10, 12, 16, 255 });
-
-    // Transition from 5 AM to 6 AM
     if (m_sixAmTimer < 2.0f) {
         DrawText("5 AM", SCREEN_WIDTH / 2 - 70, 300, 56, Color{ 180, 180, 190, 255 });
     } else {
@@ -339,9 +364,8 @@ bool UI::Handle6AMInput(GameState& state, NightManager& nightMgr, Audio& audio) 
 }
 
 void UI::RenderWinScreen() {
-    ClearBackground(Color{ 20, 22, 28, 255 });
+    ClearBackground(Color{ 18, 20, 26, 255 });
 
-    // Vintage Paycheck certificate
     float px = 300.0f;
     float py = 120.0f;
     float pw = 680.0f;
@@ -366,7 +390,6 @@ void UI::RenderWinScreen() {
     DrawText("$120.00", px + 240, py + 295, 30, Color{ 20, 90, 30, 255 });
 
     DrawText("FAZBEAR INC. MANAGEMENT", px + pw - 280, py + 370, 14, Color{ 90, 90, 100, 255 });
-
     DrawText("Press [ ENTER ] to Return to Menu", SCREEN_WIDTH / 2 - 160, SCREEN_HEIGHT - 80, 20, WHITE);
 }
 
@@ -380,32 +403,26 @@ bool UI::HandleWinScreenInput(GameState& state, Audio& audio) {
 
 void UI::RenderSettingsMenu(Settings& settings, Audio& /*audio*/) {
     ClearBackground(Color{ 12, 14, 18, 255 });
-
     DrawText("SETTINGS", SCREEN_WIDTH / 2 - 90, 80, 44, WHITE);
 
     float sx = 400.0f;
     float sy = 200.0f;
     float rowH = 65.0f;
 
-    // Master Volume
     DrawText("Master Volume:", sx, sy, 22, WHITE);
     DrawRectangle(sx + 240, sy + 4, 200, 20, Color{ 40, 45, 55, 255 });
     DrawRectangle(sx + 240, sy + 4, static_cast<int>(settings.masterVolume * 200.0f), 20, GREEN);
 
-    // SFX Volume
     DrawText("SFX Volume:", sx, sy + rowH, 22, WHITE);
     DrawRectangle(sx + 240, sy + rowH + 4, 200, 20, Color{ 40, 45, 55, 255 });
     DrawRectangle(sx + 240, sy + rowH + 4, static_cast<int>(settings.sfxVolume * 200.0f), 20, GREEN);
 
-    // Fullscreen
     DrawText("Fullscreen:", sx, sy + rowH * 2, 22, WHITE);
     DrawRectangle(sx + 240, sy + rowH * 2, 26, 26, settings.fullscreen ? GREEN : GRAY);
 
-    // CRT Scanlines
     DrawText("CRT Effects:", sx, sy + rowH * 3, 22, WHITE);
     DrawRectangle(sx + 240, sy + rowH * 3, 26, 26, settings.crtEffects ? GREEN : GRAY);
 
-    // Back Button
     Rectangle backBtn{ SCREEN_WIDTH / 2.0f - 80.0f, sy + rowH * 4.5f, 160.0f, 45.0f };
     Vector2 mPos = GetMousePosition();
     bool hoverBack = CheckCollisionPointRec(mPos, backBtn);
@@ -465,22 +482,21 @@ bool UI::HandleSettingsInput(GameState& state, Settings& settings, Audio& audio)
 
 void UI::RenderCustomNightMenu(NightManager& /*nightMgr*/, Audio& /*audio*/) {
     ClearBackground(Color{ 10, 10, 14, 255 });
-
     DrawText("CUSTOM NIGHT", SCREEN_WIDTH / 2 - 160, 60, 46, WHITE);
     DrawText("Select AI Levels (0 - 20)", SCREEN_WIDTH / 2 - 130, 115, 22, Color{ 170, 170, 180, 255 });
 
-    // 4 Character Columns
     struct CharCard {
         const char* name;
         int level;
         Color col;
+        Texture2D tex;
     };
 
     CharCard cards[4] = {
-        { "Bear",    m_customBear,    Color{ 90, 55, 30, 255 } },
-        { "Rabbit",  m_customRabbit,  Color{ 70, 55, 105, 255 } },
-        { "Chicken", m_customChicken, Color{ 100, 90, 35, 255 } },
-        { "Fox",     m_customFox,     Color{ 120, 45, 25, 255 } }
+        { "Freddy",  m_customBear,    Color{ 90, 55, 30, 255 },  m_bearPortrait },
+        { "Bonnie",  m_customRabbit,  Color{ 70, 55, 105, 255 }, m_rabbitPortrait },
+        { "Chica",   m_customChicken, Color{ 100, 90, 35, 255 }, m_chickenPortrait },
+        { "Foxy",    m_customFox,     Color{ 120, 45, 25, 255 }, m_foxPortrait }
     };
 
     float cardW = 180.0f;
@@ -492,37 +508,26 @@ void UI::RenderCustomNightMenu(NightManager& /*nightMgr*/, Audio& /*audio*/) {
         DrawRectangle(cx, cardY, cardW, 260, Color{ 22, 24, 30, 255 });
         DrawRectangleLinesEx(Rectangle{ cx, cardY, cardW, 260 }, 2, cards[i].col);
 
-        // Portrait Texture or Fallback
-        Texture2D portTex{};
-        if (i == 0) portTex = m_bearPortrait;
-        else if (i == 1) portTex = m_rabbitPortrait;
-        else if (i == 2) portTex = m_chickenPortrait;
-        else if (i == 3) portTex = m_foxPortrait;
-
-        if (portTex.id != 0) {
-            Rectangle src{ 0, 0, (float)portTex.width, (float)portTex.height };
+        if (cards[i].tex.id != 0) {
+            Rectangle src{ 0, 0, (float)cards[i].tex.width, (float)cards[i].tex.height };
             Rectangle dst{ cx + 15, cardY + 15, cardW - 30, 110 };
-            DrawTexturePro(portTex, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
+            DrawTexturePro(cards[i].tex, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
             DrawRectangleLinesEx(dst, 1, cards[i].col);
         } else {
             DrawRectangle(cx + 15, cardY + 15, cardW - 30, 110, cards[i].col);
             DrawText(cards[i].name, cx + 30, cardY + 55, 24, WHITE);
         }
 
-        // Level display
         std::string lvlStr = std::to_string(cards[i].level);
         DrawText(lvlStr.c_str(), cx + cardW * 0.5f - 12, cardY + 150, 32, WHITE);
 
-        // Minus button
         DrawRectangle(cx + 25, cardY + 200, 40, 35, Color{ 40, 45, 55, 255 });
-        DrawText("-", cx + 39, cardY + 204, 26, WHITE);
+        DrawText("<", cx + 39, cardY + 204, 26, WHITE);
 
-        // Plus button
         DrawRectangle(cx + cardW - 65, cardY + 200, 40, 35, Color{ 40, 45, 55, 255 });
-        DrawText("+", cx + cardW - 53, cardY + 204, 26, WHITE);
+        DrawText(">", cx + cardW - 53, cardY + 204, 26, WHITE);
     }
 
-    // Ready Button
     Rectangle readyBtn{ SCREEN_WIDTH / 2.0f - 100.0f, 500.0f, 200.0f, 55.0f };
     Vector2 mPos = GetMousePosition();
     bool hoverReady = CheckCollisionPointRec(mPos, readyBtn);
@@ -530,7 +535,6 @@ void UI::RenderCustomNightMenu(NightManager& /*nightMgr*/, Audio& /*audio*/) {
     DrawRectangleLinesEx(readyBtn, 2, hoverReady ? GREEN : LIGHTGRAY);
     DrawText("READY", readyBtn.x + 55, readyBtn.y + 14, 28, WHITE);
 
-    // Back to Menu
     DrawText("Press [ ESC ] to Return", SCREEN_WIDTH / 2 - 110, 580, 18, GRAY);
 }
 
@@ -558,7 +562,7 @@ bool UI::HandleCustomNightInput(GameState& state, NightManager& nightMgr, Audio&
                 if (i == 0) m_customBear = std::min(20, m_customBear + 1);
                 else if (i == 1) m_customRabbit = std::min(20, m_customRabbit - 1);
                 else if (i == 2) m_customChicken = std::min(20, m_customChicken - 1);
-                else if (i == 3) m_customFox = std::min(20, m_customFox - 1);
+                else if (i == 3) m_customFox = std::min(20, m_customFox + 1);
             }
         }
 

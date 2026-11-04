@@ -36,16 +36,26 @@ void Audio::Initialize() {
         { SoundID::Door, "assets/audio/door.wav" },
         { SoundID::LightBuzz, "assets/audio/light_buzz.wav" },
         { SoundID::CameraSwitch, "assets/audio/camera_switch.wav" },
+        { SoundID::CameraFlip, "assets/audio/camera_flip.wav" },
         { SoundID::Footsteps, "assets/audio/footsteps.wav" },
         { SoundID::Jumpscare, "assets/audio/jumpscare.wav" },
+        { SoundID::WindowScare, "assets/audio/windowscare.wav" },
         { SoundID::AnimatronicMove, "assets/audio/animatronic_move.wav" },
         { SoundID::FoxKnock, "assets/audio/fox_knock.wav" },
         { SoundID::PowerOut, "assets/audio/power_out.wav" },
         { SoundID::PowerOutMusic, "assets/audio/power_music.wav" },
         { SoundID::Kitchen, "assets/audio/kitchen.wav" },
         { SoundID::Chime6AM, "assets/audio/chime_6am.wav" },
+        { SoundID::Cheer6AM, "assets/audio/cheer.wav" },
+        { SoundID::PirateSong, "assets/audio/pirate_song.wav" },
         { SoundID::Blip, "assets/audio/blip.wav" },
-        { SoundID::FanHum, "assets/audio/fan.wav" }
+        { SoundID::FanHum, "assets/audio/fan.wav" },
+        { SoundID::MenuMusic, "assets/audio/menu_music.wav" },
+        { SoundID::PhoneCall1, "assets/audio/call_night1.wav" },
+        { SoundID::PhoneCall2, "assets/audio/call_night2.wav" },
+        { SoundID::PhoneCall3, "assets/audio/call_night3.wav" },
+        { SoundID::PhoneCall4, "assets/audio/call_night4.wav" },
+        { SoundID::PhoneCall5, "assets/audio/call_night5.wav" }
     };
 
     for (const auto& item : mappings) {
@@ -83,6 +93,8 @@ Wave Audio::SynthesizeWave(SoundID id) {
         case SoundID::PowerOutMusic: duration = 4.0f; break;
         case SoundID::Kitchen: duration = 1.0f; break;
         case SoundID::Chime6AM: duration = 3.0f; break;
+        case SoundID::Cheer6AM: duration = 2.5f; break;
+        case SoundID::PirateSong: duration = 3.5f; break;
         case SoundID::Blip: duration = 0.05f; break;
         default: duration = 0.5f; break;
     }
@@ -337,6 +349,49 @@ void Audio::PlayCameraSwitch() {
     PlaySoundEffect(SoundID::CameraSwitch, 0.5f, 1.0f);
 }
 
+void Audio::PlayCameraFlip() {
+    PlaySoundEffect(SoundID::CameraFlip, 0.7f, 1.0f);
+}
+
+void Audio::PlayWindowScare() {
+    PlaySoundEffect(SoundID::WindowScare, 0.8f, 1.0f);
+}
+
+void Audio::PlayMenuMusic(bool active) {
+    if (!m_initialized) return;
+    auto it = m_sounds.find(SoundID::MenuMusic);
+    if (it == m_sounds.end() || it->second.frameCount == 0) return;
+
+    if (active && !IsSoundPlaying(it->second)) {
+        SetSoundVolume(it->second, m_musicVolume * 0.45f);
+        PlaySound(it->second);
+    } else if (!active && IsSoundPlaying(it->second)) {
+        StopSound(it->second);
+    }
+}
+
+void Audio::PlayPhoneCall(int night) {
+    StopPhoneCall();
+    SoundID callID = SoundID::PhoneCall1;
+    if (night == 2) callID = SoundID::PhoneCall2;
+    else if (night == 3) callID = SoundID::PhoneCall3;
+    else if (night == 4) callID = SoundID::PhoneCall4;
+    else if (night >= 5) callID = SoundID::PhoneCall5;
+
+    PlaySoundEffect(callID, 0.85f, 1.0f);
+}
+
+void Audio::StopPhoneCall() {
+    if (!m_initialized) return;
+    SoundID calls[] = { SoundID::PhoneCall1, SoundID::PhoneCall2, SoundID::PhoneCall3, SoundID::PhoneCall4, SoundID::PhoneCall5 };
+    for (SoundID cid : calls) {
+        auto it = m_sounds.find(cid);
+        if (it != m_sounds.end() && it->second.frameCount > 0) {
+            StopSound(it->second);
+        }
+    }
+}
+
 void Audio::PlayAnimatronicMovement(float pan) {
     PlaySoundEffect(SoundID::AnimatronicMove, 0.7f, 0.9f + ((std::rand() % 30) * 0.01f), pan);
 }
@@ -368,6 +423,14 @@ void Audio::PlayKitchenAudio() {
 
 void Audio::PlayChime6AM() {
     PlaySoundEffect(SoundID::Chime6AM, 0.8f, 1.0f);
+}
+
+void Audio::PlayCheer6AM() {
+    PlaySoundEffect(SoundID::Cheer6AM, 0.85f, 1.0f);
+}
+
+void Audio::PlayPirateSong() {
+    PlaySoundEffect(SoundID::PirateSong, 0.7f, 1.0f, 0.25f);
 }
 
 void Audio::PlayBlip() {

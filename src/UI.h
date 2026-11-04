@@ -2,6 +2,7 @@
 
 #include <raylib.h>
 #include <string>
+#include <vector>
 #include "Common.h"
 
 namespace FNAF {
@@ -22,10 +23,29 @@ private:
     int m_customChicken = 0;
     int m_customFox = 0;
 
+    // Custom Night portraits
     Texture2D m_bearPortrait{};
     Texture2D m_rabbitPortrait{};
     Texture2D m_chickenPortrait{};
     Texture2D m_foxPortrait{};
+
+    // Menu Animated Freddy frames
+    std::vector<Texture2D> m_menuFreddyFrames;
+
+    // Jumpscare Animation Frame sets
+    std::vector<Texture2D> m_jumpscareBonnie;
+    std::vector<Texture2D> m_jumpscareChica;
+    std::vector<Texture2D> m_jumpscareFoxy;
+    std::vector<Texture2D> m_jumpscareFreddy;
+
+    // Newspaper
+    Texture2D m_newspaperTex{};
+
+    // Power Usage Bars
+    std::vector<Texture2D> m_usageTex;
+
+    // Font
+    Font m_gameFont{};
 
 public:
     UI();
@@ -54,7 +74,7 @@ public:
 
     // Jumpscare helpers
     void StartJumpscare();
-    bool IsJumpscareFinished() const { return m_jumpscareTimer > 1.6f; }
+    bool IsJumpscareFinished() const { return m_jumpscareTimer > 1.5f; }
 };
 
 } // namespace FNAF

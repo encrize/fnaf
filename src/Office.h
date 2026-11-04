@@ -1,6 +1,7 @@
 #pragma once
 
 #include <raylib.h>
+#include <vector>
 #include "Common.h"
 
 namespace FNAF {
@@ -25,7 +26,8 @@ private:
     bool m_rightLightActive = false;
 
     // Fan animation
-    float m_fanBladeAngle = 0.0f;
+    float m_fanAnimTimer = 0.0f;
+    int m_fanFrame = 0;
 
     // Interactive button bounds (in office space)
     Rectangle m_leftDoorButton{};
@@ -33,15 +35,31 @@ private:
     Rectangle m_rightDoorButton{};
     Rectangle m_rightLightButton{};
 
-    // Textures
-    Texture2D m_officeTex{};
-    Texture2D m_doorTex{};
-    Texture2D m_panelTex{};
-    Texture2D m_fanTex{};
-    Texture2D m_rabbitDoorTex{};
-    Texture2D m_chickenDoorTex{};
+    // Texture Sets
+    Texture2D m_officeMain{};
+    Texture2D m_officeLightL{};
+    Texture2D m_officeLightLBonnie{};
+    Texture2D m_officeLightR{};
+    Texture2D m_officeLightRChica{};
+    Texture2D m_officeFlicker1{};
+    Texture2D m_officeFlicker2{};
+    Texture2D m_officeBlackout{};
+
+    std::vector<Texture2D> m_fanFrames;
+    std::vector<Texture2D> m_doorLFrames;
+    std::vector<Texture2D> m_doorRFrames;
+
+    Texture2D m_btnL_Off{};
+    Texture2D m_btnL_Door{};
+    Texture2D m_btnL_Light{};
+    Texture2D m_btnL_Both{};
+
+    Texture2D m_btnR_Off{};
+    Texture2D m_btnR_Door{};
+    Texture2D m_btnR_Light{};
+    Texture2D m_btnR_Both{};
+
     Texture2D m_goldenBearTex{};
-    Texture2D m_vignetteTex{};
 
 public:
     Office();
@@ -49,7 +67,7 @@ public:
     void LoadAssets(AssetManager& assets);
     void Reset();
     void Update(float dt, bool powerDepleted, Audio& audio);
-    void HandleInput(bool monitorUp, bool powerDepleted, Audio& audio);
+    void HandleInput(bool monitorUp, bool powerDepleted, bool rabbitAtDoor, bool chickenAtDoor, Audio& audio);
     void Render(bool rabbitAtDoor, bool chickenAtDoor, bool bearPowerOutFlicker, bool rareVisitorActive, bool powerDepleted);
 
     float GetCameraX() const { return m_cameraX; }
@@ -60,8 +78,8 @@ public:
 
     void SetLeftDoor(bool closed, Audio& audio);
     void SetRightDoor(bool closed, Audio& audio);
-    void SetLeftLight(bool active, Audio& audio);
-    void SetRightLight(bool active, Audio& audio);
+    void SetLeftLight(bool active, bool rabbitAtDoor, Audio& audio);
+    void SetRightLight(bool active, bool chickenAtDoor, Audio& audio);
 };
 
 } // namespace FNAF
