@@ -98,35 +98,10 @@ void NightManager::StartNight(int night) {
     m_currentNight = std::clamp(night, 1, 7);
     m_nightTimer = 0.0f;
     m_currentHour = 0; // 12 AM
-    m_phoneCallCompleted = false;
-    m_phoneCallActive = true;
-    m_phoneTextTimer = 0.0f;
-    m_phoneTextCharCount = 0;
-
-    SetupPhoneCallText(m_currentNight);
-}
-
-void NightManager::SetupPhoneCallText(int night) {
-    switch (night) {
-        case 1:
-            m_phoneCallText = "Hello? Hello! Welcome to your new night shift. Monitor the security cameras, watch the door blindspots, and conserve electricity. The characters wander to keep their joints from seizing. Check on them regularly and you'll do fine.";
-            break;
-        case 2:
-            m_phoneCallText = "Uh, hello again! Great job on Night 1. The Rabbit and Chicken will be more active tonight. Remember: check the doorway lights before leaving doors open. And keep checking Pirate Cove... Fox hates being left unwatched.";
-            break;
-        case 3:
-            m_phoneCallText = "Hey there! Night 3 already. Watch out for the Bear tonight. He moves in the dark and sneaks up the East Hall when you're not checking. Keep your wits about you and watch that power gauge.";
-            break;
-        case 4:
-            m_phoneCallText = "Hello? You're doing surprisingly well! Power reserves are strained tonight. Conserve usage, double-check your hall corners, and stay calm. Listen closely for footsteps in the corridors.";
-            break;
-        case 5:
-            m_phoneCallText = "Uh, hello? Final shift. Everything is active tonight. Manage your door power, track the halls, and survive until 6 AM! Good luck.";
-            break;
-        default:
-            m_phoneCallText = "Custom Night: Maximum security protocol engaged. Good luck, guard.";
-            break;
-    }
+    m_phoneCallActive = (m_currentNight <= 5);
+    m_phoneCallTimer = 0.0f;
+    const float callDurations[] = { 85.0f, 45.0f, 35.0f, 30.0f, 25.0f };
+    m_phoneCallDuration = (m_currentNight >= 1 && m_currentNight <= 5) ? callDurations[m_currentNight - 1] : 0.0f;
 }
 
 void NightManager::Update(float dt) {
@@ -135,17 +110,10 @@ void NightManager::Update(float dt) {
     m_currentHour = static_cast<int>(m_nightTimer / m_hourDuration);
     if (m_currentHour > 6) m_currentHour = 6;
 
-    // Typewriter effect for phone call
-    if (m_phoneCallActive && !m_phoneCallCompleted) {
-        m_phoneTextTimer += dt;
-        m_phoneTextCharCount = static_cast<size_t>(m_phoneTextTimer * 28.0f); // 28 chars/sec
-        if (m_phoneTextCharCount >= m_phoneCallText.length()) {
-            m_phoneTextCharCount = m_phoneCallText.length();
-            // Linger for 6 seconds after completion then fade out
-            if (m_phoneTextTimer > (m_phoneCallText.length() / 28.0f) + 6.0f) {
-                m_phoneCallCompleted = true;
-                m_phoneCallActive = false;
-            }
+    if (m_phoneCallActive) {
+        m_phoneCallTimer += dt;
+        if (m_phoneCallTimer >= m_phoneCallDuration) {
+            m_phoneCallActive = false;
         }
     }
 }
@@ -172,13 +140,7 @@ void NightManager::UnlockNextNight() {
     }
 }
 
-std::string NightManager::GetCurrentPhoneSubtitles() const {
-    if (!m_phoneCallActive || m_phoneCallCompleted) return "";
-    return m_phoneCallText.substr(0, m_phoneTextCharCount);
-}
-
 void NightManager::SkipPhoneCall() {
-    m_phoneCallCompleted = true;
     m_phoneCallActive = false;
 }
 

@@ -60,13 +60,6 @@ Font AssetManager::GetFont(const std::string& path, int fontSize) {
     return GetFontDefault();
 }
 
-Texture2D AssetManager::CreateProceduralNoiseTexture(int width, int height) {
-    Image img = GenImageWhiteNoise(width, height, 0.5f);
-    Texture2D tex = LoadTextureFromImage(img);
-    UnloadImage(img);
-    return tex;
-}
-
 void AssetManager::Cleanup() {
     for (auto& pair : m_textures) {
         if (pair.second.id != 0) {

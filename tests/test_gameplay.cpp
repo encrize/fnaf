@@ -47,12 +47,11 @@ void TestNightManager() {
     assert(nm.GetCurrentHour() >= 6);
     assert(nm.IsNightComplete());
 
-    // Test phone call typing and skip
+    // Test phone call active and skip
     nm.StartNight(2);
     assert(nm.IsPhoneCallActive());
     nm.Update(0.5f);
-    std::string subs = nm.GetCurrentPhoneSubtitles();
-    assert(!subs.empty());
+    assert(nm.IsPhoneCallActive());
     nm.SkipPhoneCall();
     assert(!nm.IsPhoneCallActive());
 

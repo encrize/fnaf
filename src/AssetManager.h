@@ -29,9 +29,6 @@ public:
 
     Texture2D GetTexture(const std::string& path);
     Font GetFont(const std::string& path, int fontSize = 32);
-
-    // Creates procedural textures
-    static Texture2D CreateProceduralNoiseTexture(int width, int height);
 };
 
 } // namespace FNAF

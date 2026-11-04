@@ -56,7 +56,7 @@ public:
     // Render methods
     void RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& settings, Audio& audio);
     void RenderHUD(const NightManager& nightMgr, const Power& power, bool monitorUp);
-    void RenderPhoneSubtitles(const std::string& text);
+    void RenderPhoneMuteButton(Vector2 mousePos);
     void RenderJumpscare(AnimatronicID attacker, float dt, Audio& audio);
     void RenderGameOver(float dt);
     void Render6AM(float dt, Audio& audio);

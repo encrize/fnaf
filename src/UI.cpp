@@ -131,9 +131,8 @@ void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*
     }
 
     // Title
-    DrawText("FIVE NIGHTS", 90, 80, 56, WHITE);
-    DrawText("AT FREDDY'S", 90, 145, 56, Color{ 220, 50, 40, 255 });
-    DrawText("1987 EDITION", 92, 215, 20, Color{ 140, 140, 150, 255 });
+    DrawText("Five Nights", 90, 80, 56, WHITE);
+    DrawText("at Freddy's", 90, 145, 56, WHITE);
 
     // Menu Options
     Vector2 mousePos = GetVirtualMousePosition();
@@ -173,7 +172,7 @@ void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*
         }
     }
 
-    DrawText("Press F1 for Debug Overlay | Press ESC to Exit", 90, SCREEN_HEIGHT - 45, 18, Color{ 100, 100, 110, 255 });
+    DrawText("v 1.13", 30, SCREEN_HEIGHT - 35, 18, Color{ 140, 140, 150, 200 });
 }
 
 bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings& /*settings*/, Audio& audio, Vector2 mousePos) {
@@ -256,12 +255,12 @@ void UI::RenderHUD(const NightManager& nightMgr, const Power& power, bool /*moni
     }
 }
 
-void UI::RenderPhoneSubtitles(const std::string& text) {
-    if (text.empty()) return;
-    DrawRectangle(140, 20, SCREEN_WIDTH - 280, 75, Color{ 10, 10, 15, 220 });
-    DrawRectangleLinesEx(Rectangle{ 140, 20, SCREEN_WIDTH - 280, 75 }, 2, Color{ 50, 50, 70, 255 });
-    DrawText("[ PHONE CALL ]  (Press M or ENTER to Mute)", 160, 28, 14, YELLOW);
-    DrawText(text.c_str(), 160, 50, 16, WHITE);
+void UI::RenderPhoneMuteButton(Vector2 mousePos) {
+    Rectangle muteBtn{ 40.0f, 40.0f, 120.0f, 32.0f };
+    bool hover = CheckCollisionPointRec(mousePos, muteBtn);
+    DrawRectangleRec(muteBtn, hover ? Color{ 190, 40, 40, 220 } : Color{ 130, 25, 25, 180 });
+    DrawRectangleLinesEx(muteBtn, 1.5f, hover ? RED : Color{ 200, 70, 70, 255 });
+    DrawText("MUTE CALL", 48, 48, 16, WHITE);
 }
 
 void UI::RenderJumpscare(AnimatronicID attacker, float dt, Audio& audio) {
@@ -344,7 +343,6 @@ void UI::Render6AM(float dt, Audio& audio) {
         DrawText("5 AM", SCREEN_WIDTH / 2 - 70, 300, 56, Color{ 180, 180, 190, 255 });
     } else {
         DrawText("6 AM", SCREEN_WIDTH / 2 - 70, 300, 68, Color{ 240, 230, 90, 255 });
-        DrawText("GREAT JOB!", SCREEN_WIDTH / 2 - 80, 400, 28, GREEN);
     }
 }
 

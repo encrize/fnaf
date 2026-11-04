@@ -25,15 +25,12 @@ private:
     std::vector<NightDifficulty> m_nightConfigs;
     NightDifficulty m_customNightConfig{ 7, 0, 0, 0, 0 };
 
-    // Phone call tutorial subtitles
-    std::string m_phoneCallText;
-    float m_phoneTextTimer = 0.0f;
-    size_t m_phoneTextCharCount = 0;
+    // Phone call tracking
+    float m_phoneCallTimer = 0.0f;
+    float m_phoneCallDuration = 60.0f;
     bool m_phoneCallActive = false;
-    bool m_phoneCallCompleted = false;
 
     void SetupDefaultDifficulties();
-    void SetupPhoneCallText(int night);
 
 public:
     NightManager();
@@ -60,9 +57,8 @@ public:
     void SetCustomNightAI(int bear, int rabbit, int chicken, int fox);
     const NightDifficulty& GetCustomNightConfig() const { return m_customNightConfig; }
 
-    // Phone call subtitles
+    // Phone call
     bool IsPhoneCallActive() const { return m_phoneCallActive; }
-    std::string GetCurrentPhoneSubtitles() const;
     void SkipPhoneCall();
 };
 

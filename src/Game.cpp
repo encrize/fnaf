@@ -15,7 +15,7 @@ Game::~Game() {
 
 bool Game::Initialize() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Five Nights at Freddy's - C++ Fan Recreation");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Five Nights at Freddy's");
     SetTargetFPS(TARGET_FPS);
 
     m_assets.Initialize();
@@ -123,7 +123,9 @@ void Game::ProcessInput() {
             bool powerDepleted = m_power.IsDepleted();
 
             // Mute / Skip phone call
-            if (IsKeyPressed(KEY_M) || IsKeyPressed(KEY_ENTER)) {
+            Rectangle muteBtn{ 40.0f, 40.0f, 120.0f, 32.0f };
+            if (m_nightManager.IsPhoneCallActive() &&
+                ((IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(vMouse, muteBtn)) || IsKeyPressed(KEY_M))) {
                 m_nightManager.SkipPhoneCall();
                 m_audio.StopPhoneCall();
             }
@@ -280,7 +282,6 @@ void Game::Render() {
                 DrawText(nStr.c_str(), SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 - 40, 48, WHITE);
                 DrawText("12:00 AM", SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 + 30, 26, Color{ 160, 160, 170, 255 });
             }
-            DrawText("Press [ SPACE ] to Skip", SCREEN_WIDTH / 2 - 110, SCREEN_HEIGHT - 60, 18, GRAY);
             break;
         }
 
@@ -303,9 +304,9 @@ void Game::Render() {
             // Render HUD
             m_ui.RenderHUD(m_nightManager, m_power, m_cameras.IsMonitorUp());
 
-            // Render phone call subtitles if active
-            if (m_nightManager.IsPhoneCallActive()) {
-                m_ui.RenderPhoneSubtitles(m_nightManager.GetCurrentPhoneSubtitles());
+            // Render phone call mute button if active and monitor is down
+            if (m_nightManager.IsPhoneCallActive() && !m_cameras.IsMonitorUp()) {
+                m_ui.RenderPhoneMuteButton(GetVirtualMousePosition());
             }
 
             break;
