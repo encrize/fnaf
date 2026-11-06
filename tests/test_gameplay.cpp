@@ -121,6 +121,23 @@ void TestCameras(FNAF::Audio& audio) {
         (void)name;
     }
 
+    // Verify map buttons and room hitboxes are correctly aligned
+    const auto& buttons = cams.GetMapButtons();
+    assert(buttons.size() == 11);
+
+    // Verify CAM_1C (Pirate Cove) button and hitbox covers the room rectangle
+    for (const auto& btn : buttons) {
+        if (btn.id == FNAF::CameraID::CAM_1C) {
+            assert(CheckCollisionPointRec(Vector2{ 920.0f, 500.0f }, btn.hitRect));
+            assert(CheckCollisionPointRec(Vector2{ 920.0f, 500.0f }, btn.rect));
+        }
+        if (btn.id == FNAF::CameraID::CAM_6) {
+            // Kitchen room
+            assert(CheckCollisionPointRec(Vector2{ 1180.0f, 580.0f }, btn.hitRect));
+            assert(CheckCollisionPointRec(Vector2{ 1180.0f, 580.0f }, btn.rect));
+        }
+    }
+
     std::cout << "[TEST] Cameras Test PASSED.\n";
 }
 

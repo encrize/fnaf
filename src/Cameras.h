@@ -12,7 +12,8 @@ class AssetManager;
 
 struct CameraButton {
     CameraID id;
-    Rectangle rect;
+    Rectangle rect;     // Visual button rectangle (centered directly on camera room)
+    Rectangle hitRect;  // Click and hover hitbox covering the room rectangle
     const char* label;
 };
 
@@ -33,8 +34,9 @@ private:
 
     // Map texture & Flip frames
     Texture2D m_mapTex{};
+    Font m_font{};
     std::vector<Texture2D> m_flipFrames;
-    std::vector<Texture2D> m_glitchFrames;
+    std::vector<Texture2D> m_noiseTextures;
 
     // LRU Cache for room camera feeds (holds max 3 feeds in VRAM)
     struct CameraCacheEntry {
@@ -71,6 +73,7 @@ public:
     bool IsMonitorUp() const { return m_monitorUp; }
     float GetMonitorProgress() const { return m_monitorProgress; }
     CameraID GetCurrentCamera() const { return m_currentCam; }
+    const std::vector<CameraButton>& GetMapButtons() const { return m_mapButtons; }
     void SetCurrentCamera(CameraID cam, Audio& audio);
     void ToggleMonitor(Audio& audio);
     void ForceMonitorDown();

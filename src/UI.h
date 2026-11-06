@@ -29,8 +29,17 @@ private:
     Texture2D m_chickenPortrait{};
     Texture2D m_foxPortrait{};
 
-    // Menu Animated Freddy frames
-    std::vector<Texture2D> m_menuFreddyFrames;
+    // Menu Freddy & Procedural CRT Noise
+    Texture2D m_menuFreddyTex{};
+    std::vector<Texture2D> m_noiseTextures;
+    int m_noiseFrame = 0;
+    float m_noiseTimer = 0.0f;
+    float m_menuTwitchTimer = 0.0f;
+    float m_menuNextTwitchTime = 3.0f;
+
+    void DrawPixelText(const char* text, float x, float y, float size, Color color, float spacing = 1.0f);
+    Vector2 MeasurePixelText(const char* text, float size, float spacing = 1.0f);
+    void DrawCenteredPixelText(const char* text, const Rectangle& bounds, float size, Color color, float spacing = 1.0f);
 
     // On-demand Jumpscare frames (lazy-loaded ONLY during active jumpscare, then immediately unloaded)
     std::vector<Texture2D> m_activeJumpscareFrames;
@@ -59,6 +68,7 @@ public:
 
     // Render methods
     void RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& settings, Audio& audio);
+    void RenderNightIntro(int currentNight, float timer, AssetManager& assets);
     void RenderHUD(const NightManager& nightMgr, const Power& power, bool monitorUp);
     void RenderPhoneMuteButton(Vector2 mousePos);
     void RenderJumpscare(AnimatronicID attacker, float dt, Audio& audio);

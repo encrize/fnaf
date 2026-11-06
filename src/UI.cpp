@@ -13,6 +13,29 @@ UI::UI() {
     Reset();
 }
 
+void UI::DrawPixelText(const char* text, float x, float y, float size, Color color, float spacing) {
+    if (m_gameFont.texture.id != 0) {
+        DrawTextEx(m_gameFont, text, Vector2{ x, y }, size, spacing, color);
+    } else {
+        DrawText(text, static_cast<int>(x), static_cast<int>(y), static_cast<int>(size), color);
+    }
+}
+
+Vector2 UI::MeasurePixelText(const char* text, float size, float spacing) {
+    if (!text || text[0] == '\0') return Vector2{ 0.0f, 0.0f };
+    if (m_gameFont.texture.id != 0) {
+        return MeasureTextEx(m_gameFont, text, size, spacing);
+    }
+    return Vector2{ static_cast<float>(MeasureText(text, static_cast<int>(size))), size };
+}
+
+void UI::DrawCenteredPixelText(const char* text, const Rectangle& bounds, float size, Color color, float spacing) {
+    Vector2 sz = MeasurePixelText(text, size, spacing);
+    float tx = bounds.x + (bounds.width - sz.x) * 0.5f;
+    float ty = bounds.y + (bounds.height - sz.y) * 0.5f;
+    DrawPixelText(text, tx, ty, size, color, spacing);
+}
+
 void UI::LoadAssets(AssetManager& assets) {
     m_assets = &assets;
     m_bearPortrait    = assets.GetTexture("assets/images/custom_night/527.png");
@@ -21,16 +44,19 @@ void UI::LoadAssets(AssetManager& assets) {
     m_foxPortrait     = assets.GetTexture("assets/images/custom_night/536.png");
 
     m_newspaperTex    = assets.GetTexture("assets/images/newspaper.png");
-    m_gameFont        = assets.GetFont("assets/fonts/Pixeboy.ttf", 32);
+    m_gameFont        = assets.GetFont("assets/fonts/Pixeboy.ttf", 36);
 
-    // Menu Freddy Twitch Frames
-    m_menuFreddyFrames.clear();
-    const char* mFrames[] = {
-        "freddy.png", "12.png", "13.png", "14.png", "15.png",
-        "16.png", "17.png", "18.png", "20.png"
-    };
-    for (const char* mf : mFrames) {
-        m_menuFreddyFrames.push_back(assets.GetTexture(std::string("assets/images/menu/") + mf));
+    // Menu Freddy Artwork
+    m_menuFreddyTex = assets.GetTexture("assets/images/menu/freddy.png");
+
+    // Procedural TV Snow Noise Textures (6 frames for fluid 30-60 FPS analog grain, zero flat rectangles)
+    m_noiseTextures.clear();
+    for (int i = 0; i < 6; ++i) {
+        Image img = GenImageWhiteNoise(480, 270, 0.45f);
+        Texture2D tex = LoadTextureFromImage(img);
+        SetTextureFilter(tex, TEXTURE_FILTER_BILINEAR);
+        UnloadImage(img);
+        m_noiseTextures.push_back(tex);
     }
 
     // Usage Bars
@@ -43,6 +69,10 @@ void UI::LoadAssets(AssetManager& assets) {
 
 UI::~UI() {
     UnloadJumpscareFrames();
+    for (auto& tex : m_noiseTextures) {
+        if (tex.id != 0) UnloadTexture(tex);
+    }
+    m_noiseTextures.clear();
 }
 
 void UI::UnloadJumpscareFrames() {
@@ -136,97 +166,140 @@ void UI::StartJumpscare() {
     m_jumpscareTimer = 0.0f;
 }
 
-void UI::RenderMainMenu(int currentNight, bool customNightUnlocked, Settings& /*settings*/, Audio& audio) {
-    m_menuTimer += GetFrameTime();
+void UI::RenderMainMenu(int currentNight, bool /*customNightUnlocked*/, Settings& settings, Audio& audio) {
+    float dt = GetFrameTime();
+    m_menuTimer += dt;
     audio.PlayMenuMusic(true);
 
-    ClearBackground(Color{ 6, 6, 8, 255 });
+    ClearBackground(BLACK);
 
-    // Animated Freddy face twitch on the right
-    Texture2D freddyTex{};
-    if (!m_menuFreddyFrames.empty()) {
-        bool twitch = (GetRandomValue(0, 100) > 94);
-        int frameIdx = twitch ? GetRandomValue(1, static_cast<int>(m_menuFreddyFrames.size() - 1)) : 0;
-        freddyTex = m_menuFreddyFrames[frameIdx];
+    // 1. Freddy Background & Authentic Twitch Animation
+    m_menuTwitchTimer += dt;
+    bool isTwitching = false;
+    float jitterX = 0.0f;
+    float jitterY = 0.0f;
+
+    if (m_menuTwitchTimer >= m_menuNextTwitchTime) {
+        if (m_menuTwitchTimer < m_menuNextTwitchTime + 0.14f) {
+            isTwitching = true;
+            jitterX = static_cast<float>(GetRandomValue(-12, 12));
+            jitterY = static_cast<float>(GetRandomValue(-6, 6));
+        } else {
+            m_menuTwitchTimer = 0.0f;
+            m_menuNextTwitchTime = 2.2f + (static_cast<float>(GetRandomValue(0, 320)) / 100.0f);
+        }
     }
 
-    if (freddyTex.id != 0) {
-        float fScale = 0.85f;
-        float fw = freddyTex.width * fScale;
-        float fh = freddyTex.height * fScale;
-        float fx = SCREEN_WIDTH - fw - 20;
-        float fy = (SCREEN_HEIGHT - fh) * 0.5f;
-        DrawTexturePro(freddyTex,
-                       Rectangle{ 0, 0, (float)freddyTex.width, (float)freddyTex.height },
-                       Rectangle{ fx, fy, fw, fh },
-                       Vector2{ 0, 0 }, 0.0f, WHITE);
+    if (m_menuFreddyTex.id != 0) {
+        float fH = static_cast<float>(SCREEN_HEIGHT) + 20.0f;
+        float fW = fH * (static_cast<float>(m_menuFreddyTex.width) / static_cast<float>(m_menuFreddyTex.height));
+        float fX = (static_cast<float>(SCREEN_WIDTH) - fW + 40.0f) + jitterX;
+        float fY = jitterY;
+
+        Color fTint = isTwitching ? Color{ 255, 220, 220, 255 } : Color{ 200, 200, 205, 255 };
+        DrawTexturePro(m_menuFreddyTex,
+                       Rectangle{ 0, 0, static_cast<float>(m_menuFreddyTex.width), static_cast<float>(m_menuFreddyTex.height) },
+                       Rectangle{ fX, fY, fW, fH },
+                       Vector2{ 0, 0 }, 0.0f, fTint);
     }
 
-    // Static Noise
-    for (int i = 0; i < 400; ++i) {
-        int x = GetRandomValue(0, SCREEN_WIDTH);
-        int y = GetRandomValue(0, SCREEN_HEIGHT);
-        int val = GetRandomValue(30, 90);
-        DrawPixel(x, y, Color{ static_cast<unsigned char>(val), static_cast<unsigned char>(val), static_cast<unsigned char>(val), 180 });
+    // 2. High-speed Animated TV Snow (Additive Mode - Authentic retro phosphor TV grain, zero flat grey boxes)
+    m_noiseTimer += dt;
+    if (m_noiseTimer >= 0.033f) {
+        m_noiseTimer = 0.0f;
+        if (!m_noiseTextures.empty()) {
+            m_noiseFrame = (m_noiseFrame + 1) % m_noiseTextures.size();
+        }
+    }
+    if (settings.crtEffects && !m_noiseTextures.empty()) {
+        BeginBlendMode(BLEND_ADDITIVE);
+        Texture2D nTex = m_noiseTextures[m_noiseFrame];
+        unsigned char nAlpha = isTwitching ? 85 : 24;
+        DrawTexturePro(nTex,
+                       Rectangle{ 0, 0, static_cast<float>(nTex.width), static_cast<float>(nTex.height) },
+                       Rectangle{ 0, 0, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) },
+                       Vector2{ 0, 0 }, 0.0f, Color{ 255, 255, 255, nAlpha });
+        EndBlendMode();
     }
 
-    // Title
-    DrawText("Five Nights", 90, 80, 56, WHITE);
-    DrawText("at Freddy's", 90, 145, 56, WHITE);
+    // 3. Crisp Authentic CRT Phosphor Scanlines
+    if (settings.crtEffects) {
+        for (int y = 0; y < SCREEN_HEIGHT; y += 3) {
+            DrawRectangle(0, y, SCREEN_WIDTH, 1, Color{ 0, 0, 0, 55 });
+        }
+    }
 
-    // Menu Options
+    // 4. Iconic Title: "Five Nights at Freddy's"
+    float titleX = 80.0f;
+    float titleY = 60.0f;
+    DrawPixelText("Five", titleX, titleY, 50.0f, WHITE, 2.0f);
+    DrawPixelText("Nights", titleX, titleY + 46.0f, 50.0f, WHITE, 2.0f);
+    DrawPixelText("at", titleX, titleY + 92.0f, 50.0f, WHITE, 2.0f);
+    DrawPixelText("Freddy's", titleX, titleY + 138.0f, 50.0f, WHITE, 2.0f);
+
+    // 5. Menu Options with zero overlap and uniform authentic spacing
     Vector2 mousePos = GetVirtualMousePosition();
-    float startY = 320.0f;
-    float spacing = 55.0f;
+    constexpr float menuX = 80.0f;
+    constexpr float menuW = 340.0f;
+    constexpr float yNewGame   = 310.0f;
+    constexpr float yContinue  = 358.0f;
+    constexpr float yNight6    = 440.0f;
+    constexpr float yCustom    = 490.0f;
+    constexpr float ySettings  = 540.0f;
+    constexpr float yExit      = 590.0f;
 
-    struct Option {
+    struct MenuEntry {
+        int id; // 0=NewGame, 1=Continue, 2=Night6, 3=CustomNight, 4=Settings, 5=Exit
         const char* label;
-        Rectangle rect;
+        Rectangle hitRect;
+        float textY;
     };
 
-    std::vector<Option> options = {
-        { "New Game", Rectangle{ 90, startY, 260, 45 } },
-        { "Continue", Rectangle{ 90, startY + spacing, 260, 45 } },
-        { "Settings", Rectangle{ 90, startY + spacing * 2, 260, 45 } }
+    std::vector<MenuEntry> menuEntries = {
+        { 0, "New Game",     Rectangle{ menuX, yNewGame - 5.0f,  menuW, 40.0f }, yNewGame },
+        { 1, "Continue",     Rectangle{ menuX, yContinue - 5.0f, menuW, 72.0f }, yContinue },
+        { 2, "6th Night",    Rectangle{ menuX, yNight6 - 5.0f,   menuW, 40.0f }, yNight6 },
+        { 3, "Custom Night", Rectangle{ menuX, yCustom - 5.0f,   menuW, 40.0f }, yCustom },
+        { 4, "Settings",     Rectangle{ menuX, ySettings - 5.0f, menuW, 40.0f }, ySettings },
+        { 5, "Exit",         Rectangle{ menuX, yExit - 5.0f,     menuW, 40.0f }, yExit }
     };
 
-    if (customNightUnlocked) {
-        options.push_back({ "Custom Night", Rectangle{ 90, startY + spacing * 3, 260, 45 } });
-        options.push_back({ "Exit Game",    Rectangle{ 90, startY + spacing * 4, 260, 45 } });
-    } else {
-        options.push_back({ "Exit Game",    Rectangle{ 90, startY + spacing * 3, 260, 45 } });
-    }
-
-    for (const auto& opt : options) {
-        bool hover = CheckCollisionPointRec(mousePos, opt.rect);
-        Color col = hover ? Color{ 255, 230, 90, 255 } : WHITE;
+    for (const auto& entry : menuEntries) {
+        bool hover = CheckCollisionPointRec(mousePos, entry.hitRect);
+        Color col = hover ? WHITE : Color{ 200, 200, 205, 230 };
 
         if (hover) {
-            DrawText(">>", opt.rect.x - 35, opt.rect.y + 4, 28, Color{ 220, 50, 40, 255 });
+            DrawPixelText(">>", menuX - 34.0f, entry.textY + 4.0f, 30.0f, WHITE, 1.0f);
         }
-        DrawText(opt.label, opt.rect.x, opt.rect.y + 4, 30, col);
+        DrawPixelText(entry.label, menuX, entry.textY + 4.0f, 30.0f, col, 1.5f);
 
-        if (std::string(opt.label) == "Continue") {
-            std::string nText = "(Night " + std::to_string(currentNight) + ")";
-            DrawText(nText.c_str(), opt.rect.x + 160, opt.rect.y + 8, 22, Color{ 160, 160, 170, 255 });
+        // Display current night cleanly indented underneath Continue - strictly non-overlapping
+        if (entry.id == 1) {
+            std::string nText = "Night " + std::to_string(currentNight);
+            Color nCol = hover ? Color{ 240, 230, 110, 255 } : Color{ 150, 150, 165, 255 };
+            DrawPixelText(nText.c_str(), menuX + 35.0f, entry.textY + 42.0f, 20.0f, nCol, 1.2f);
         }
     }
 
-    DrawText("v 1.13", 30, SCREEN_HEIGHT - 35, 18, Color{ 140, 140, 150, 200 });
+    DrawPixelText("v 1.13", 30.0f, SCREEN_HEIGHT - 35.0f, 20.0f, Color{ 120, 120, 130, 180 }, 1.0f);
 }
 
 bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings& /*settings*/, Audio& audio, Vector2 mousePos) {
-    float startY = 320.0f;
-    float spacing = 55.0f;
+    constexpr float menuX = 80.0f;
+    constexpr float menuW = 340.0f;
+    constexpr float yNewGame   = 310.0f;
+    constexpr float yContinue  = 358.0f;
+    constexpr float yNight6    = 440.0f;
+    constexpr float yCustom    = 490.0f;
+    constexpr float ySettings  = 540.0f;
+    constexpr float yExit      = 590.0f;
 
-    Rectangle newGameRect{ 90, startY, 260, 45 };
-    Rectangle continueRect{ 90, startY + spacing, 260, 45 };
-    Rectangle settingsRect{ 90, startY + spacing * 2, 260, 45 };
-
-    bool customUnlocked = (nightMgr.GetHighestUnlockedNight() >= 5);
-    Rectangle customRect{ 90, startY + spacing * 3, 260, 45 };
-    Rectangle exitRect = customUnlocked ? Rectangle{ 90, startY + spacing * 4, 260, 45 }
-                                        : Rectangle{ 90, startY + spacing * 3, 260, 45 };
+    Rectangle newGameRect{ menuX, yNewGame - 5.0f,  menuW, 40.0f };
+    Rectangle continueRect{ menuX, yContinue - 5.0f, menuW, 72.0f };
+    Rectangle night6Rect{ menuX, yNight6 - 5.0f,   menuW, 40.0f };
+    Rectangle customRect{ menuX, yCustom - 5.0f,   menuW, 40.0f };
+    Rectangle settingsRect{ menuX, ySettings - 5.0f, menuW, 40.0f };
+    Rectangle exitRect{ menuX, yExit - 5.0f,     menuW, 40.0f };
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if (CheckCollisionPointRec(mousePos, newGameRect)) {
@@ -243,14 +316,21 @@ bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings&
             state = GameState::NightIntro;
             return true;
         }
+        if (CheckCollisionPointRec(mousePos, night6Rect)) {
+            audio.PlayBlip();
+            audio.PlayMenuMusic(false);
+            nightMgr.StartNight(6);
+            state = GameState::NightIntro;
+            return true;
+        }
+        if (CheckCollisionPointRec(mousePos, customRect)) {
+            audio.PlayBlip();
+            state = GameState::CustomNightSelect;
+            return true;
+        }
         if (CheckCollisionPointRec(mousePos, settingsRect)) {
             audio.PlayBlip();
             state = GameState::SettingsMenu;
-            return true;
-        }
-        if (customUnlocked && CheckCollisionPointRec(mousePos, customRect)) {
-            audio.PlayBlip();
-            state = GameState::CustomNightSelect;
             return true;
         }
         if (CheckCollisionPointRec(mousePos, exitRect)) {
@@ -262,45 +342,62 @@ bool UI::HandleMainMenuInput(GameState& state, NightManager& nightMgr, Settings&
 }
 
 void UI::RenderHUD(const NightManager& nightMgr, const Power& power, bool /*monitorUp*/) {
-    // Top Right: Time & Night
+    // Top Right: Time & Night (Authentic FNAF 1 pixel presentation, right-aligned with ample vertical gap)
     int hour = nightMgr.GetCurrentHour();
     std::string timeStr = (hour == 0) ? "12 AM" : (std::to_string(hour) + " AM");
-    DrawText(timeStr.c_str(), SCREEN_WIDTH - 150, 30, 36, WHITE);
+    Vector2 timeSz = MeasurePixelText(timeStr.c_str(), 46.0f, 2.0f);
+    DrawPixelText(timeStr.c_str(), SCREEN_WIDTH - 45.0f - timeSz.x, 22.0f, 46.0f, WHITE, 2.0f);
 
     std::string nightStr = "Night " + std::to_string(nightMgr.GetCurrentNight());
-    DrawText(nightStr.c_str(), SCREEN_WIDTH - 150, 75, 24, Color{ 200, 200, 200, 255 });
+    Vector2 nightSz = MeasurePixelText(nightStr.c_str(), 24.0f, 1.5f);
+    DrawPixelText(nightStr.c_str(), SCREEN_WIDTH - 45.0f - nightSz.x, 76.0f, 24.0f, Color{ 200, 200, 200, 255 }, 1.5f);
 
-    // Bottom Left: Power & Usage
+    // Bottom Left: Power & Usage (Authentic FNAF 1 pixel presentation, non-overlapping spacing)
     int pVal = static_cast<int>(power.GetPower());
     std::string powerStr = "Power left: " + std::to_string(pVal) + "%";
     Color pCol = (pVal > 20) ? WHITE : ((pVal > 10) ? YELLOW : RED);
-    DrawText(powerStr.c_str(), 45, SCREEN_HEIGHT - 95, 24, pCol);
+    DrawPixelText(powerStr.c_str(), 45.0f, SCREEN_HEIGHT - 98.0f, 26.0f, pCol, 1.5f);
 
-    DrawText("Usage:", 45, SCREEN_HEIGHT - 60, 20, WHITE);
+    DrawPixelText("Usage:", 45.0f, SCREEN_HEIGHT - 62.0f, 22.0f, WHITE, 1.5f);
     int usage = std::clamp(power.GetUsageLevel(), 1, 5);
+    float usageBarX = 155.0f;
+    float usageBarY = SCREEN_HEIGHT - 60.0f;
+    constexpr float USAGE_SCALE = 1.0f;
+
     if (usage - 1 < static_cast<int>(m_usageTex.size()) && m_usageTex[usage - 1].id > 0) {
-        DrawTexturePro(m_usageTex[usage - 1],
-                       Rectangle{ 0, 0, static_cast<float>(m_usageTex[usage - 1].width), static_cast<float>(m_usageTex[usage - 1].height) },
-                       Rectangle{ 120.0f, static_cast<float>(SCREEN_HEIGHT - 65), static_cast<float>(m_usageTex[usage - 1].width) * 1.3f, static_cast<float>(m_usageTex[usage - 1].height) * 1.3f },
-                       Vector2{ 0, 0 }, 0.0f, WHITE);
+        Texture2D uTex = m_usageTex[usage - 1];
+
+        DrawTexturePro(
+            uTex,
+            Rectangle{ 0, 0, static_cast<float>(uTex.width), static_cast<float>(uTex.height) },
+            Rectangle{
+                usageBarX,
+                usageBarY - 2.0f,
+                static_cast<float>(uTex.width) * USAGE_SCALE,
+                static_cast<float>(uTex.height) * 0.75f
+            },
+            Vector2{ 0, 0 },
+            0.0f,
+            WHITE
+        );
     } else {
         for (int i = 0; i < 5; ++i) {
             Color barCol = (i == 0) ? GREEN : ((i == 1) ? LIME : ((i == 2) ? YELLOW : ((i == 3) ? ORANGE : RED)));
             if (i < usage) {
-                DrawRectangle(125 + i * 22, SCREEN_HEIGHT - 60, 16, 20, barCol);
+                DrawRectangle(static_cast<int>(usageBarX) + i * 20, static_cast<int>(usageBarY), 15, 20, barCol);
             } else {
-                DrawRectangleLines(125 + i * 22, SCREEN_HEIGHT - 60, 16, 20, Color{ 80, 80, 90, 160 });
+                DrawRectangleLines(static_cast<int>(usageBarX) + i * 20, static_cast<int>(usageBarY), 15, 20, Color{ 80, 80, 90, 160 });
             }
         }
     }
 }
 
 void UI::RenderPhoneMuteButton(Vector2 mousePos) {
-    Rectangle muteBtn{ 40.0f, 40.0f, 120.0f, 32.0f };
+    Rectangle muteBtn{ 40.0f, 40.0f, 140.0f, 34.0f };
     bool hover = CheckCollisionPointRec(mousePos, muteBtn);
-    DrawRectangleRec(muteBtn, hover ? Color{ 190, 40, 40, 220 } : Color{ 130, 25, 25, 180 });
-    DrawRectangleLinesEx(muteBtn, 1.5f, hover ? RED : Color{ 200, 70, 70, 255 });
-    DrawText("MUTE CALL", 48, 48, 16, WHITE);
+    DrawRectangleRec(muteBtn, hover ? Color{ 170, 40, 40, 200 } : Color{ 50, 50, 60, 160 });
+    DrawRectangleLinesEx(muteBtn, 1.5f, hover ? RED : Color{ 160, 160, 170, 200 });
+    DrawCenteredPixelText("MUTE CALL", muteBtn, 20.0f, WHITE, 1.0f);
 }
 
 void UI::RenderJumpscare(AnimatronicID attacker, float dt, Audio& audio) {
@@ -335,6 +432,46 @@ void UI::RenderJumpscare(AnimatronicID attacker, float dt, Audio& audio) {
     DrawCircle(SCREEN_WIDTH * 0.5f + shakeX, SCREEN_HEIGHT * 0.55f + shakeY, 150, RED);
 }
 
+void UI::RenderNightIntro(int currentNight, float timer, AssetManager& assets) {
+    ClearBackground(BLACK);
+
+    if (currentNight == 1 && timer < 3.5f) {
+        Texture2D news = assets.GetTexture("assets/images/newspaper.png");
+        if (news.id > 0) {
+            DrawTexturePro(news,
+                           Rectangle{ 0, 0, static_cast<float>(news.width), static_cast<float>(news.height) },
+                           Rectangle{ 0, 0, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) },
+                           Vector2{ 0, 0 }, 0.0f, WHITE);
+            return;
+        }
+    }
+
+    // Authentic FNAF 1 Night Intro
+    bool blip = (std::fmod(timer, 0.8f) < 0.4f);
+    std::string timeStr = "12:00 AM";
+    Vector2 tSz = MeasurePixelText(timeStr.c_str(), 54.0f, 2.0f);
+    float tX = (SCREEN_WIDTH - tSz.x) * 0.5f;
+    float tY = SCREEN_HEIGHT * 0.5f - 55.0f;
+    DrawPixelText(timeStr.c_str(), tX, tY, 54.0f, WHITE, 2.0f);
+    if (blip) {
+        DrawCircle(static_cast<int>(tX + tSz.x + 18.0f), static_cast<int>(tY + tSz.y * 0.5f), 6.0f, WHITE);
+    }
+
+    std::string nStr;
+    switch (currentNight) {
+        case 1: nStr = "1st Night"; break;
+        case 2: nStr = "2nd Night"; break;
+        case 3: nStr = "3rd Night"; break;
+        case 4: nStr = "4th Night"; break;
+        case 5: nStr = "5th Night"; break;
+        case 6: nStr = "6th Night"; break;
+        case 7: nStr = "Custom Night"; break;
+        default: nStr = "Night " + std::to_string(currentNight); break;
+    }
+    Vector2 nSz = MeasurePixelText(nStr.c_str(), 34.0f, 1.5f);
+    DrawPixelText(nStr.c_str(), (SCREEN_WIDTH - nSz.x) * 0.5f, SCREEN_HEIGHT * 0.5f + 30.0f, 34.0f, Color{ 210, 210, 220, 255 }, 1.5f);
+}
+
 void UI::RenderGameOver(float /*dt*/) {
     UnloadJumpscareFrames(); // Immediately release jumpscare frames from memory!
     ClearBackground(BLACK);
@@ -344,9 +481,14 @@ void UI::RenderGameOver(float /*dt*/) {
         int v = GetRandomValue(30, 180);
         DrawPixel(x, y, Color{ static_cast<unsigned char>(v), static_cast<unsigned char>(v), static_cast<unsigned char>(v), 200 });
     }
-    DrawText("GAME OVER", SCREEN_WIDTH / 2 - 190, 280, 64, Color{ 210, 30, 30, 255 });
-    DrawText("Press [ ENTER ] to Retry Night", SCREEN_WIDTH / 2 - 160, 400, 22, WHITE);
-    DrawText("Press [ ESC ] for Main Menu", SCREEN_WIDTH / 2 - 150, 440, 22, LIGHTGRAY);
+    Vector2 goSz = MeasurePixelText("GAME OVER", 70.0f, 2.0f);
+    DrawPixelText("GAME OVER", (SCREEN_WIDTH - goSz.x) * 0.5f, 270.0f, 70.0f, Color{ 210, 30, 30, 255 }, 2.0f);
+
+    Vector2 r1Sz = MeasurePixelText("Press [ ENTER ] to Retry Night", 24.0f, 1.2f);
+    DrawPixelText("Press [ ENTER ] to Retry Night", (SCREEN_WIDTH - r1Sz.x) * 0.5f, 400.0f, 24.0f, WHITE, 1.2f);
+
+    Vector2 r2Sz = MeasurePixelText("Press [ ESC ] for Main Menu", 22.0f, 1.2f);
+    DrawPixelText("Press [ ESC ] for Main Menu", (SCREEN_WIDTH - r2Sz.x) * 0.5f, 440.0f, 22.0f, LIGHTGRAY, 1.2f);
 }
 
 bool UI::HandleGameOverInput(GameState& state, NightManager& nightMgr, Audio& audio, Vector2 /*mousePos*/) {
@@ -374,11 +516,19 @@ void UI::Render6AM(float dt, Audio& audio) {
         audio.PlayCheer6AM();
     }
 
-    ClearBackground(Color{ 10, 12, 16, 255 });
+    ClearBackground(Color{ 8, 8, 10, 255 });
+
+    // Subtle CRT scanlines
+    for (int y = 0; y < SCREEN_HEIGHT; y += 4) {
+        DrawLine(0, y, SCREEN_WIDTH, y, Color{ 0, 0, 0, 50 });
+    }
+
     if (m_sixAmTimer < 2.0f) {
-        DrawText("5 AM", SCREEN_WIDTH / 2 - 70, 300, 56, Color{ 180, 180, 190, 255 });
+        Vector2 sz5 = MeasurePixelText("5 AM", 80.0f, 2.5f);
+        DrawPixelText("5 AM", (SCREEN_WIDTH - sz5.x) * 0.5f, 280.0f, 80.0f, Color{ 200, 200, 210, 255 }, 2.5f);
     } else {
-        DrawText("6 AM", SCREEN_WIDTH / 2 - 70, 300, 68, Color{ 240, 230, 90, 255 });
+        Vector2 sz6 = MeasurePixelText("6 AM", 84.0f, 2.5f);
+        DrawPixelText("6 AM", (SCREEN_WIDTH - sz6.x) * 0.5f, 280.0f, 84.0f, Color{ 245, 235, 120, 255 }, 2.5f);
     }
 }
 
@@ -435,45 +585,62 @@ bool UI::HandleWinScreenInput(GameState& state, Audio& audio, Vector2 /*mousePos
 }
 
 void UI::RenderSettingsMenu(Settings& settings, Audio& /*audio*/) {
-    ClearBackground(Color{ 12, 14, 18, 255 });
-    DrawText("SETTINGS", SCREEN_WIDTH / 2 - 90, 80, 44, WHITE);
+    ClearBackground(Color{ 10, 12, 16, 255 });
+    Vector2 titleSz = MeasurePixelText("SETTINGS", 48.0f, 2.0f);
+    DrawPixelText("SETTINGS", (SCREEN_WIDTH - titleSz.x) * 0.5f, 65.0f, 48.0f, WHITE, 2.0f);
 
-    float sx = 400.0f;
-    float sy = 200.0f;
-    float rowH = 65.0f;
+    constexpr float labelX = 350.0f;
+    constexpr float ctrlX  = 630.0f;
+    constexpr float sy     = 180.0f;
+    constexpr float rowH   = 65.0f;
+    constexpr float sliderW = 220.0f;
+    constexpr float sliderH = 22.0f;
+    constexpr float toggleSize = 28.0f;
 
-    DrawText("Master Volume:", sx, sy, 22, WHITE);
-    DrawRectangle(sx + 240, sy + 4, 200, 20, Color{ 40, 45, 55, 255 });
-    DrawRectangle(sx + 240, sy + 4, static_cast<int>(settings.masterVolume * 200.0f), 20, GREEN);
+    // Master Volume
+    DrawPixelText("Master Volume:", labelX, sy + 3.0f, 24.0f, WHITE, 1.2f);
+    DrawRectangle(static_cast<int>(ctrlX), static_cast<int>(sy + 4.0f), static_cast<int>(sliderW), static_cast<int>(sliderH), Color{ 40, 45, 55, 255 });
+    DrawRectangle(static_cast<int>(ctrlX), static_cast<int>(sy + 4.0f), static_cast<int>(settings.masterVolume * sliderW), static_cast<int>(sliderH), GREEN);
+    DrawRectangleLines(static_cast<int>(ctrlX), static_cast<int>(sy + 4.0f), static_cast<int>(sliderW), static_cast<int>(sliderH), Color{ 80, 90, 110, 200 });
 
-    DrawText("SFX Volume:", sx, sy + rowH, 22, WHITE);
-    DrawRectangle(sx + 240, sy + rowH + 4, 200, 20, Color{ 40, 45, 55, 255 });
-    DrawRectangle(sx + 240, sy + rowH + 4, static_cast<int>(settings.sfxVolume * 200.0f), 20, GREEN);
+    // SFX Volume
+    DrawPixelText("SFX Volume:", labelX, sy + rowH + 3.0f, 24.0f, WHITE, 1.2f);
+    DrawRectangle(static_cast<int>(ctrlX), static_cast<int>(sy + rowH + 4.0f), static_cast<int>(sliderW), static_cast<int>(sliderH), Color{ 40, 45, 55, 255 });
+    DrawRectangle(static_cast<int>(ctrlX), static_cast<int>(sy + rowH + 4.0f), static_cast<int>(settings.sfxVolume * sliderW), static_cast<int>(sliderH), GREEN);
+    DrawRectangleLines(static_cast<int>(ctrlX), static_cast<int>(sy + rowH + 4.0f), static_cast<int>(sliderW), static_cast<int>(sliderH), Color{ 80, 90, 110, 200 });
 
-    DrawText("Fullscreen:", sx, sy + rowH * 2, 22, WHITE);
-    DrawRectangle(sx + 240, sy + rowH * 2, 26, 26, settings.fullscreen ? GREEN : GRAY);
+    // Fullscreen
+    DrawPixelText("Fullscreen:", labelX, sy + rowH * 2.0f + 3.0f, 24.0f, WHITE, 1.2f);
+    DrawRectangle(static_cast<int>(ctrlX), static_cast<int>(sy + rowH * 2.0f + 2.0f), static_cast<int>(toggleSize), static_cast<int>(toggleSize), settings.fullscreen ? GREEN : GRAY);
+    DrawRectangleLines(static_cast<int>(ctrlX), static_cast<int>(sy + rowH * 2.0f + 2.0f), static_cast<int>(toggleSize), static_cast<int>(toggleSize), WHITE);
 
-    DrawText("CRT Effects:", sx, sy + rowH * 3, 22, WHITE);
-    DrawRectangle(sx + 240, sy + rowH * 3, 26, 26, settings.crtEffects ? GREEN : GRAY);
+    // CRT Effects
+    DrawPixelText("CRT Effects:", labelX, sy + rowH * 3.0f + 3.0f, 24.0f, WHITE, 1.2f);
+    DrawRectangle(static_cast<int>(ctrlX), static_cast<int>(sy + rowH * 3.0f + 2.0f), static_cast<int>(toggleSize), static_cast<int>(toggleSize), settings.crtEffects ? GREEN : GRAY);
+    DrawRectangleLines(static_cast<int>(ctrlX), static_cast<int>(sy + rowH * 3.0f + 2.0f), static_cast<int>(toggleSize), static_cast<int>(toggleSize), WHITE);
 
-    Rectangle backBtn{ SCREEN_WIDTH / 2.0f - 80.0f, sy + rowH * 4.5f, 160.0f, 45.0f };
+    // Back Button
+    Rectangle backBtn{ SCREEN_WIDTH * 0.5f - 90.0f, sy + rowH * 4.4f, 180.0f, 46.0f };
     Vector2 mPos = GetVirtualMousePosition();
     bool hoverBack = CheckCollisionPointRec(mPos, backBtn);
     DrawRectangleRec(backBtn, hoverBack ? Color{ 80, 100, 140, 255 } : Color{ 40, 50, 70, 255 });
-    DrawRectangleLinesEx(backBtn, 2, hoverBack ? SKYBLUE : GRAY);
-    DrawText("BACK", backBtn.x + 48, backBtn.y + 12, 22, WHITE);
+    DrawRectangleLinesEx(backBtn, 2.0f, hoverBack ? SKYBLUE : GRAY);
+    DrawCenteredPixelText("BACK", backBtn, 24.0f, WHITE, 1.2f);
 }
 
 bool UI::HandleSettingsInput(GameState& state, Settings& settings, Audio& audio, Vector2 mPos) {
-    float sx = 400.0f;
-    float sy = 200.0f;
-    float rowH = 65.0f;
+    constexpr float ctrlX  = 630.0f;
+    constexpr float sy     = 180.0f;
+    constexpr float rowH   = 65.0f;
+    constexpr float sliderW = 220.0f;
+    constexpr float sliderH = 22.0f;
+    constexpr float toggleSize = 28.0f;
 
-    Rectangle masterSlider{ sx + 240, sy + 4, 200, 20 };
-    Rectangle sfxSlider{ sx + 240, sy + rowH + 4, 200, 20 };
-    Rectangle fsToggle{ sx + 240, sy + rowH * 2, 26, 26 };
-    Rectangle crtToggle{ sx + 240, sy + rowH * 3, 26, 26 };
-    Rectangle backBtn{ SCREEN_WIDTH / 2.0f - 80.0f, sy + rowH * 4.5f, 160.0f, 45.0f };
+    Rectangle masterSlider{ ctrlX, sy + 4.0f, sliderW, sliderH };
+    Rectangle sfxSlider{ ctrlX, sy + rowH + 4.0f, sliderW, sliderH };
+    Rectangle fsToggle{ ctrlX, sy + rowH * 2.0f + 2.0f, toggleSize, toggleSize };
+    Rectangle crtToggle{ ctrlX, sy + rowH * 3.0f + 2.0f, toggleSize, toggleSize };
+    Rectangle backBtn{ SCREEN_WIDTH * 0.5f - 90.0f, sy + rowH * 4.4f, 180.0f, 46.0f };
 
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
         if (CheckCollisionPointRec(mPos, masterSlider)) {
@@ -513,9 +680,37 @@ bool UI::HandleSettingsInput(GameState& state, Settings& settings, Audio& audio,
 }
 
 void UI::RenderCustomNightMenu(NightManager& /*nightMgr*/, Audio& /*audio*/) {
-    ClearBackground(Color{ 10, 10, 14, 255 });
-    DrawText("CUSTOM NIGHT", SCREEN_WIDTH / 2 - 160, 60, 46, WHITE);
-    DrawText("Select AI Levels (0 - 20)", SCREEN_WIDTH / 2 - 130, 115, 22, Color{ 170, 170, 180, 255 });
+    ClearBackground(Color{ 8, 8, 12, 255 });
+
+    // High-speed Animated TV Snow (Additive Mode)
+    float dt = GetFrameTime();
+    m_noiseTimer += dt;
+    if (m_noiseTimer >= 0.033f) {
+        m_noiseTimer = 0.0f;
+        if (!m_noiseTextures.empty()) {
+            m_noiseFrame = (m_noiseFrame + 1) % m_noiseTextures.size();
+        }
+    }
+    if (!m_noiseTextures.empty()) {
+        BeginBlendMode(BLEND_ADDITIVE);
+        Texture2D nTex = m_noiseTextures[m_noiseFrame];
+        DrawTexturePro(nTex,
+                       Rectangle{ 0, 0, static_cast<float>(nTex.width), static_cast<float>(nTex.height) },
+                       Rectangle{ 0, 0, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) },
+                       Vector2{ 0, 0 }, 0.0f, Color{ 255, 255, 255, 20 });
+        EndBlendMode();
+    }
+
+    // Crisp CRT Scanlines
+    for (int y = 0; y < SCREEN_HEIGHT; y += 3) {
+        DrawRectangle(0, y, SCREEN_WIDTH, 1, Color{ 0, 0, 0, 50 });
+    }
+
+    Vector2 titleSz = MeasurePixelText("Customize Night", 50.0f, 2.0f);
+    DrawPixelText("Customize Night", (SCREEN_WIDTH - titleSz.x) * 0.5f, 40.0f, 50.0f, WHITE, 2.0f);
+
+    Vector2 subSz = MeasurePixelText("A.I. LEVEL", 26.0f, 1.5f);
+    DrawPixelText("A.I. LEVEL", (SCREEN_WIDTH - subSz.x) * 0.5f, 96.0f, 26.0f, Color{ 170, 170, 180, 255 }, 1.5f);
 
     struct CharCard {
         const char* name;
@@ -525,61 +720,102 @@ void UI::RenderCustomNightMenu(NightManager& /*nightMgr*/, Audio& /*audio*/) {
     };
 
     CharCard cards[4] = {
-        { "Freddy",  m_customBear,    Color{ 90, 55, 30, 255 },  m_bearPortrait },
-        { "Bonnie",  m_customRabbit,  Color{ 70, 55, 105, 255 }, m_rabbitPortrait },
-        { "Chica",   m_customChicken, Color{ 100, 90, 35, 255 }, m_chickenPortrait },
-        { "Foxy",    m_customFox,     Color{ 120, 45, 25, 255 }, m_foxPortrait }
+        { "Freddy",  m_customBear,    Color{ 107, 63, 34, 255 },  m_bearPortrait },
+        { "Bonnie",  m_customRabbit,  Color{ 111, 60, 78, 255 },  m_rabbitPortrait },
+        { "Chica",   m_customChicken, Color{ 124, 108, 54, 255 }, m_chickenPortrait },
+        { "Foxy",    m_customFox,     Color{ 110, 45, 50, 255 },  m_foxPortrait }
     };
 
-    float cardW = 180.0f;
-    float startX = (SCREEN_WIDTH - (4 * cardW + 3 * 30.0f)) * 0.5f;
-    float cardY = 180.0f;
+    constexpr float cardW = 190.0f;
+    constexpr float cardGap = 35.0f;
+    constexpr float totalW = 4.0f * cardW + 3.0f * cardGap;
+    float startX = (SCREEN_WIDTH - totalW) * 0.5f;
+    float endX = startX + totalW;
+    float cardY = 145.0f;
+    Vector2 mPos = GetVirtualMousePosition();
 
     for (int i = 0; i < 4; ++i) {
-        float cx = startX + i * (cardW + 30.0f);
-        DrawRectangle(cx, cardY, cardW, 260, Color{ 22, 24, 30, 255 });
-        DrawRectangleLinesEx(Rectangle{ cx, cardY, cardW, 260 }, 2, cards[i].col);
+        float cx = startX + i * (cardW + cardGap);
+        Rectangle cardRect{ cx, cardY, cardW, 280.0f };
+        DrawRectangleRec(cardRect, Color{ 16, 18, 24, 230 });
+        DrawRectangleLinesEx(cardRect, 2.0f, cards[i].col);
 
+        // Portrait
         if (cards[i].tex.id != 0) {
-            Rectangle src{ 0, 0, (float)cards[i].tex.width, (float)cards[i].tex.height };
-            Rectangle dst{ cx + 15, cardY + 15, cardW - 30, 110 };
+            Rectangle src{ 0, 0, static_cast<float>(cards[i].tex.width), static_cast<float>(cards[i].tex.height) };
+            Rectangle dst{ cx + 15.0f, cardY + 15.0f, cardW - 30.0f, cardW - 30.0f };
             DrawTexturePro(cards[i].tex, src, dst, Vector2{ 0, 0 }, 0.0f, WHITE);
-            DrawRectangleLinesEx(dst, 1, cards[i].col);
-        } else {
-            DrawRectangle(cx + 15, cardY + 15, cardW - 30, 110, cards[i].col);
-            DrawText(cards[i].name, cx + 30, cardY + 55, 24, WHITE);
+            DrawRectangleLinesEx(dst, 1.5f, cards[i].col);
         }
 
+        // Name (Centered under portrait)
+        Vector2 nameSz = MeasurePixelText(cards[i].name, 26.0f, 1.2f);
+        DrawPixelText(cards[i].name, cx + (cardW - nameSz.x) * 0.5f, cardY + 185.0f, 26.0f, WHITE, 1.2f);
+
+        // Level controls: <  LEVEL  >
+        Rectangle minusBtn{ cx + 16.0f, cardY + 225.0f, 40.0f, 36.0f };
+        Rectangle plusBtn{ cx + cardW - 56.0f, cardY + 225.0f, 40.0f, 36.0f };
+        bool hMinus = CheckCollisionPointRec(mPos, minusBtn);
+        bool hPlus = CheckCollisionPointRec(mPos, plusBtn);
+
+        DrawRectangleRec(minusBtn, hMinus ? Color{ 80, 85, 100, 255 } : Color{ 35, 40, 50, 255 });
+        DrawRectangleLinesEx(minusBtn, 1.5f, hMinus ? WHITE : GRAY);
+        DrawCenteredPixelText("<", minusBtn, 24.0f, WHITE, 1.0f);
+
+        DrawRectangleRec(plusBtn, hPlus ? Color{ 80, 85, 100, 255 } : Color{ 35, 40, 50, 255 });
+        DrawRectangleLinesEx(plusBtn, 1.5f, hPlus ? WHITE : GRAY);
+        DrawCenteredPixelText(">", plusBtn, 24.0f, WHITE, 1.0f);
+
         std::string lvlStr = std::to_string(cards[i].level);
-        DrawText(lvlStr.c_str(), cx + cardW * 0.5f - 12, cardY + 150, 32, WHITE);
-
-        DrawRectangle(cx + 25, cardY + 200, 40, 35, Color{ 40, 45, 55, 255 });
-        DrawText("<", cx + 39, cardY + 204, 26, WHITE);
-
-        DrawRectangle(cx + cardW - 65, cardY + 200, 40, 35, Color{ 40, 45, 55, 255 });
-        DrawText(">", cx + cardW - 53, cardY + 204, 26, WHITE);
+        Rectangle lvlRect{ cx + 56.0f, cardY + 225.0f, cardW - 112.0f, 36.0f };
+        DrawCenteredPixelText(lvlStr.c_str(), lvlRect, 30.0f, WHITE, 1.5f);
     }
 
-    Rectangle readyBtn{ SCREEN_WIDTH / 2.0f - 100.0f, 500.0f, 200.0f, 55.0f };
-    Vector2 mPos = GetVirtualMousePosition();
-    bool hoverReady = CheckCollisionPointRec(mPos, readyBtn);
-    DrawRectangleRec(readyBtn, hoverReady ? Color{ 40, 160, 60, 255 } : Color{ 30, 110, 45, 255 });
-    DrawRectangleLinesEx(readyBtn, 2, hoverReady ? GREEN : LIGHTGRAY);
-    DrawText("READY", readyBtn.x + 55, readyBtn.y + 14, 28, WHITE);
+    // Presets (bottom-left)
+    Rectangle mode20Btn{ startX, 465.0f, 195.0f, 48.0f };
+    Rectangle mode10Btn{ startX + 210.0f, 465.0f, 115.0f, 48.0f };
+    Rectangle mode0Btn{ startX + 340.0f, 465.0f, 105.0f, 48.0f };
 
-    DrawText("Press [ ESC ] to Return", SCREEN_WIDTH / 2 - 110, 580, 18, GRAY);
+    auto drawPresetBtn = [&](const Rectangle& r, const char* label) {
+        bool h = CheckCollisionPointRec(mPos, r);
+        DrawRectangleRec(r, h ? Color{ 50, 60, 80, 255 } : Color{ 25, 30, 40, 220 });
+        DrawRectangleLinesEx(r, 1.5f, h ? WHITE : GRAY);
+        DrawCenteredPixelText(label, r, 20.0f, h ? WHITE : LIGHTGRAY, 1.0f);
+    };
+
+    drawPresetBtn(mode20Btn, "20/20/20/20");
+    drawPresetBtn(mode10Btn, "ALL 10");
+    drawPresetBtn(mode0Btn, "ALL 0");
+
+    // Action buttons (bottom-right, strictly inside bounds, perfectly centered)
+    Rectangle backBtn{ endX - 130.0f, 465.0f, 130.0f, 48.0f };
+    Rectangle readyBtn{ endX - 130.0f - 20.0f - 160.0f, 465.0f, 160.0f, 48.0f };
+
+    bool hoverReady = CheckCollisionPointRec(mPos, readyBtn);
+    DrawRectangleRec(readyBtn, hoverReady ? Color{ 45, 160, 65, 255 } : Color{ 30, 110, 45, 255 });
+    DrawRectangleLinesEx(readyBtn, 2.0f, hoverReady ? GREEN : LIGHTGRAY);
+    DrawCenteredPixelText("READY", readyBtn, 28.0f, WHITE, 1.5f);
+
+    bool hoverBack = CheckCollisionPointRec(mPos, backBtn);
+    DrawRectangleRec(backBtn, hoverBack ? Color{ 140, 40, 40, 255 } : Color{ 80, 25, 25, 255 });
+    DrawRectangleLinesEx(backBtn, 1.5f, hoverBack ? RED : GRAY);
+    DrawCenteredPixelText("BACK", backBtn, 26.0f, WHITE, 1.2f);
 }
 
 bool UI::HandleCustomNightInput(GameState& state, NightManager& nightMgr, Audio& audio, Vector2 mPos) {
-    float cardW = 180.0f;
-    float startX = (SCREEN_WIDTH - (4 * cardW + 3 * 30.0f)) * 0.5f;
-    float cardY = 180.0f;
+    constexpr float cardW = 190.0f;
+    constexpr float cardGap = 35.0f;
+    constexpr float totalW = 4.0f * cardW + 3.0f * cardGap;
+    float startX = (SCREEN_WIDTH - totalW) * 0.5f;
+    float endX = startX + totalW;
+    float cardY = 145.0f;
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        // Character +/- level buttons
         for (int i = 0; i < 4; ++i) {
-            float cx = startX + i * (cardW + 30.0f);
-            Rectangle minusBtn{ cx + 25, cardY + 200, 40, 35 };
-            Rectangle plusBtn{ cx + cardW - 65, cardY + 200, 40, 35 };
+            float cx = startX + i * (cardW + cardGap);
+            Rectangle minusBtn{ cx + 16.0f, cardY + 225.0f, 40.0f, 36.0f };
+            Rectangle plusBtn{ cx + cardW - 56.0f, cardY + 225.0f, 40.0f, 36.0f };
 
             if (CheckCollisionPointRec(mPos, minusBtn)) {
                 audio.PlayBlip();
@@ -591,18 +827,55 @@ bool UI::HandleCustomNightInput(GameState& state, NightManager& nightMgr, Audio&
             if (CheckCollisionPointRec(mPos, plusBtn)) {
                 audio.PlayBlip();
                 if (i == 0) m_customBear = std::min(20, m_customBear + 1);
-                else if (i == 1) m_customRabbit = std::min(20, m_customRabbit - 1);
-                else if (i == 2) m_customChicken = std::min(20, m_customChicken - 1);
+                else if (i == 1) m_customRabbit = std::min(20, m_customRabbit + 1);
+                else if (i == 2) m_customChicken = std::min(20, m_customChicken + 1);
                 else if (i == 3) m_customFox = std::min(20, m_customFox + 1);
             }
         }
 
-        Rectangle readyBtn{ SCREEN_WIDTH / 2.0f - 100.0f, 500.0f, 200.0f, 55.0f };
+        // Preset buttons
+        Rectangle mode20Btn{ startX, 465.0f, 195.0f, 48.0f };
+        Rectangle mode10Btn{ startX + 210.0f, 465.0f, 115.0f, 48.0f };
+        Rectangle mode0Btn{ startX + 340.0f, 465.0f, 105.0f, 48.0f };
+
+        if (CheckCollisionPointRec(mPos, mode20Btn)) {
+            audio.PlayBlip();
+            m_customBear = 20;
+            m_customRabbit = 20;
+            m_customChicken = 20;
+            m_customFox = 20;
+        }
+        if (CheckCollisionPointRec(mPos, mode10Btn)) {
+            audio.PlayBlip();
+            m_customBear = 10;
+            m_customRabbit = 10;
+            m_customChicken = 10;
+            m_customFox = 10;
+        }
+        if (CheckCollisionPointRec(mPos, mode0Btn)) {
+            audio.PlayBlip();
+            m_customBear = 0;
+            m_customRabbit = 0;
+            m_customChicken = 0;
+            m_customFox = 0;
+        }
+
+        // Action buttons
+        Rectangle backBtn{ endX - 130.0f, 465.0f, 130.0f, 48.0f };
+        Rectangle readyBtn{ endX - 130.0f - 20.0f - 160.0f, 465.0f, 160.0f, 48.0f };
+
         if (CheckCollisionPointRec(mPos, readyBtn)) {
             audio.PlayBlip();
+            audio.PlayMenuMusic(false);
             nightMgr.SetCustomNightAI(m_customBear, m_customRabbit, m_customChicken, m_customFox);
             nightMgr.StartNight(7);
             state = GameState::NightIntro;
+            return true;
+        }
+        if (CheckCollisionPointRec(mPos, backBtn)) {
+            audio.PlayBlip();
+            state = GameState::MainMenu;
+            return true;
         }
     }
 

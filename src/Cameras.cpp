@@ -15,6 +15,10 @@ Cameras::Cameras() {
 
 Cameras::~Cameras() {
     ClearCameraCache();
+    for (auto& tex : m_noiseTextures) {
+        if (tex.id != 0) UnloadTexture(tex);
+    }
+    m_noiseTextures.clear();
 }
 
 void Cameras::ClearCameraCache() {
@@ -135,6 +139,7 @@ std::string Cameras::DetermineCameraFeedPath(LocationID bearLoc, LocationID rabb
 
 void Cameras::LoadAssets(AssetManager& assets) {
     m_assets = &assets;
+    m_font = assets.GetFont("assets/fonts/Pixeboy.ttf", 26);
     m_mapTex = assets.GetTexture("assets/images/cams/map.png");
 
     m_flipFrames.clear();
@@ -142,10 +147,14 @@ void Cameras::LoadAssets(AssetManager& assets) {
         m_flipFrames.push_back(assets.GetTexture("assets/images/flip/" + std::to_string(i) + ".png"));
     }
 
-    m_glitchFrames.clear();
-    const char* glitches[] = { "430.png", "434.png", "435.png", "436.png", "437.png", "438.png", "439.png" };
-    for (const char* g : glitches) {
-        m_glitchFrames.push_back(assets.GetTexture(std::string("assets/images/cams/Glitch/") + g));
+    // Procedural TV snow noise frames for cameras (silky 30-60 FPS CCTV grain, zero flat rectangles)
+    m_noiseTextures.clear();
+    for (int i = 0; i < 6; ++i) {
+        Image img = GenImageWhiteNoise(480, 270, 0.45f);
+        Texture2D tex = LoadTextureFromImage(img);
+        SetTextureFilter(tex, TEXTURE_FILTER_BILINEAR);
+        UnloadImage(img);
+        m_noiseTextures.push_back(tex);
     }
 }
 
@@ -162,20 +171,42 @@ void Cameras::Reset() {
 
 void Cameras::SetupMapButtons() {
     m_mapButtons.clear();
-    float bx = 900.0f;
-    float by = 350.0f;
+    constexpr float mx = 880.0f;
+    constexpr float my = 320.0f;
 
-    m_mapButtons.push_back({ CameraID::CAM_1A, Rectangle{ bx + 110, by + 10,  55, 30 }, "1A" });
-    m_mapButtons.push_back({ CameraID::CAM_1B, Rectangle{ bx + 110, by + 65,  55, 30 }, "1B" });
-    m_mapButtons.push_back({ CameraID::CAM_5,  Rectangle{ bx + 15,  by + 70,  55, 30 }, "5"  });
-    m_mapButtons.push_back({ CameraID::CAM_1C, Rectangle{ bx + 45,  by + 130, 55, 30 }, "1C" });
-    m_mapButtons.push_back({ CameraID::CAM_7,  Rectangle{ bx + 275, by + 75,  55, 30 }, "7"  });
-    m_mapButtons.push_back({ CameraID::CAM_6,  Rectangle{ bx + 275, by + 160, 55, 30 }, "6"  });
-    m_mapButtons.push_back({ CameraID::CAM_2A, Rectangle{ bx + 80,  by + 200, 55, 30 }, "2A" });
-    m_mapButtons.push_back({ CameraID::CAM_3,  Rectangle{ bx + 15,  by + 215, 55, 30 }, "3"  });
-    m_mapButtons.push_back({ CameraID::CAM_2B, Rectangle{ bx + 80,  by + 250, 55, 30 }, "2B" });
-    m_mapButtons.push_back({ CameraID::CAM_4A, Rectangle{ bx + 205, by + 200, 55, 30 }, "4A" });
-    m_mapButtons.push_back({ CameraID::CAM_4B, Rectangle{ bx + 205, by + 250, 55, 30 }, "4B" });
+    // Aligned directly with the camera room rectangles on map.png
+    // 1A - Show Stage (map.png room: x=126..231, y=43..76)
+    m_mapButtons.push_back({ CameraID::CAM_1A, Rectangle{ mx + 152.0f, my + 47.0f, 52.0f, 26.0f }, Rectangle{ mx + 126.0f, my + 43.0f, 105.0f, 34.0f }, "1A" });
+
+    // 1B - Dining Area (upper-central dining hall below stage)
+    m_mapButtons.push_back({ CameraID::CAM_1B, Rectangle{ mx + 152.0f, my + 101.0f, 52.0f, 28.0f }, Rectangle{ mx + 142.0f, my + 91.0f, 72.0f, 48.0f }, "1B" });
+
+    // 5 - Backstage (map.png room: x=10..48, y=77..147)
+    m_mapButtons.push_back({ CameraID::CAM_5,  Rectangle{ mx + 11.0f,  my + 98.0f,  36.0f, 28.0f }, Rectangle{ mx + 8.0f,   my + 76.0f, 44.0f, 72.0f }, "5" });
+
+    // 1C - Pirate Cove (map.png room: x=23..61, y=162..210)
+    m_mapButtons.push_back({ CameraID::CAM_1C, Rectangle{ mx + 24.0f,  my + 172.0f, 36.0f, 28.0f }, Rectangle{ mx + 20.0f,  my + 158.0f, 46.0f, 54.0f }, "1C" });
+
+    // 3 - Supply Closet (map.png room: x=56..93, y=246..316)
+    m_mapButtons.push_back({ CameraID::CAM_3,  Rectangle{ mx + 57.0f,  my + 267.0f, 36.0f, 28.0f }, Rectangle{ mx + 54.0f,  my + 244.0f, 44.0f, 74.0f }, "3" });
+
+    // 2A - West Hall Upper (map.png corridor: x=105..147, y=229..290)
+    m_mapButtons.push_back({ CameraID::CAM_2A, Rectangle{ mx + 106.0f, my + 244.0f, 40.0f, 28.0f }, Rectangle{ mx + 102.0f, my + 225.0f, 48.0f, 68.0f }, "2A" });
+
+    // 2B - West Hall Lower / Corner (map.png corridor: x=105..147, y=295..363)
+    m_mapButtons.push_back({ CameraID::CAM_2B, Rectangle{ mx + 106.0f, my + 314.0f, 40.0f, 28.0f }, Rectangle{ mx + 102.0f, my + 294.0f, 48.0f, 72.0f }, "2B" });
+
+    // 4A - East Hall Upper (map.png corridor: x=210..251, y=229..290)
+    m_mapButtons.push_back({ CameraID::CAM_4A, Rectangle{ mx + 211.0f, my + 244.0f, 40.0f, 28.0f }, Rectangle{ mx + 207.0f, my + 225.0f, 48.0f, 68.0f }, "4A" });
+
+    // 4B - East Hall Lower / Corner (map.png corridor: x=210..251, y=295..363)
+    m_mapButtons.push_back({ CameraID::CAM_4B, Rectangle{ mx + 211.0f, my + 314.0f, 40.0f, 28.0f }, Rectangle{ mx + 207.0f, my + 294.0f, 48.0f, 72.0f }, "4B" });
+
+    // 6 - Kitchen (map.png room: x=265..347, y=229..298)
+    m_mapButtons.push_back({ CameraID::CAM_6,  Rectangle{ mx + 280.0f, my + 250.0f, 52.0f, 28.0f }, Rectangle{ mx + 263.0f, my + 227.0f, 86.0f, 73.0f }, "6" });
+
+    // 7 - Restrooms (map.png room: x=297..344, y=98..216)
+    m_mapButtons.push_back({ CameraID::CAM_7,  Rectangle{ mx + 297.0f, my + 143.0f, 42.0f, 28.0f }, Rectangle{ mx + 295.0f, my + 96.0f,  88.0f, 122.0f }, "7" });
 
     m_monitorFlipBar = Rectangle{ 340.0f, SCREEN_HEIGHT - 45.0f, 600.0f, 40.0f };
 }
@@ -230,9 +261,8 @@ void Cameras::HandleInput(Vector2 mousePos, bool powerDepleted, Audio& audio) {
     if (m_monitorUp && m_monitorProgress >= 0.9f) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             for (const auto& btn : m_mapButtons) {
-                // Generous hitbox (+4px padding around button) for crisp responsive clicking
-                Rectangle hitRect{ btn.rect.x - 4.0f, btn.rect.y - 4.0f, btn.rect.width + 8.0f, btn.rect.height + 8.0f };
-                if (CheckCollisionPointRec(mousePos, hitRect)) {
+                // Responsive clicking on camera room rectangle or button area
+                if (CheckCollisionPointRec(mousePos, btn.hitRect) || CheckCollisionPointRec(mousePos, btn.rect)) {
                     SetCurrentCamera(btn.id, audio);
                     break;
                 }
@@ -277,9 +307,7 @@ void Cameras::Update(float dt, bool powerDepleted, Audio& /*audio*/) {
         m_switchStaticTimer -= dt;
     }
 
-    if (!m_glitchFrames.empty()) {
-        m_glitchFrame = (static_cast<int>(m_staticTimer * 15.0f)) % m_glitchFrames.size();
-    }
+
 }
 
 void Cameras::Render(float /*officeCameraX*/,
@@ -291,10 +319,17 @@ void Cameras::Render(float /*officeCameraX*/,
     if (m_monitorProgress <= 0.0f) {
         Vector2 mousePos = GetVirtualMousePosition();
         bool hovering = CheckCollisionPointRec(mousePos, m_monitorFlipBar);
-        Color barColor = hovering ? Color{ 80, 160, 220, 160 } : Color{ 40, 40, 50, 140 };
+        Color barColor = hovering ? Color{ 140, 160, 190, 120 } : Color{ 40, 45, 55, 90 };
         DrawRectangleRec(m_monitorFlipBar, barColor);
-        DrawRectangleLinesEx(m_monitorFlipBar, 2, hovering ? SKYBLUE : GRAY);
-        DrawText("[ SPACE / HOVER / CLICK ] TO OPEN CAMERA MONITOR", m_monitorFlipBar.x + 60, m_monitorFlipBar.y + 12, 18, WHITE);
+        DrawRectangleLinesEx(m_monitorFlipBar, 2.0f, hovering ? WHITE : Color{ 160, 160, 170, 180 });
+
+        // Sleek authentic camera chevron icon pointing up (▲)
+        float cx = m_monitorFlipBar.x + m_monitorFlipBar.width * 0.5f;
+        float cy = m_monitorFlipBar.y + m_monitorFlipBar.height * 0.5f;
+        DrawTriangle(Vector2{ cx, cy - 8.0f },
+                     Vector2{ cx - 14.0f, cy + 6.0f },
+                     Vector2{ cx + 14.0f, cy + 6.0f },
+                     hovering ? WHITE : Color{ 200, 200, 210, 200 });
         return;
     }
 
@@ -340,61 +375,102 @@ void Cameras::Render(float /*officeCameraX*/,
         }
     }
 
-    // 2. Glitch / Static Overlay
-    if (!m_glitchFrames.empty()) {
-        Texture2D gTex = m_glitchFrames[m_glitchFrame];
-        if (gTex.id != 0) {
-            float alpha = (m_switchStaticTimer > 0.0f) ? 0.85f : 0.25f;
-            Rectangle src{ 0, 0, (float)gTex.width, (float)gTex.height };
-            Rectangle dst{ 0, 0, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
-            DrawTexturePro(gTex, src, dst, Vector2{ 0, 0 }, 0.0f, ColorAlpha(WHITE, alpha));
+    // 2. High-speed Animated TV Snow / CCTV Static Noise (Zero grey rectangles!)
+    if (!m_noiseTextures.empty()) {
+        int nIdx = static_cast<int>(m_staticTimer * 30.0f) % m_noiseTextures.size();
+        Texture2D nTex = m_noiseTextures[nIdx];
+        if (nTex.id != 0) {
+            if (m_switchStaticTimer > 0.0f) {
+                // Intense authentic static burst when switching cameras
+                DrawTexturePro(nTex,
+                               Rectangle{ 0, 0, static_cast<float>(nTex.width), static_cast<float>(nTex.height) },
+                               Rectangle{ 0, 0, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) },
+                               Vector2{ 0, 0 }, 0.0f, ColorAlpha(WHITE, 0.75f));
+            } else {
+                // Subtle authentic CCTV static noise in additive mode
+                BeginBlendMode(BLEND_ADDITIVE);
+                DrawTexturePro(nTex,
+                               Rectangle{ 0, 0, static_cast<float>(nTex.width), static_cast<float>(nTex.height) },
+                               Rectangle{ 0, 0, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) },
+                               Vector2{ 0, 0 }, 0.0f, Color{ 255, 255, 255, 32 });
+                EndBlendMode();
+            }
         }
     }
 
-    // 3. CRT Scanlines
+    // 3. Crisp CRT Scanlines
     if (crtEnabled) {
-        for (int y = 0; y < SCREEN_HEIGHT; y += 4) {
-            DrawLine(0, y, SCREEN_WIDTH, y, Color{ 0, 0, 0, 45 });
+        for (int y = 0; y < SCREEN_HEIGHT; y += 3) {
+            DrawRectangle(0, y, SCREEN_WIDTH, 1, Color{ 0, 0, 0, 55 });
         }
     }
 
-    // 4. Camera Name & REC indicator
-    DrawText(GetCameraName(m_currentCam), 60, 50, 24, Color{ 220, 220, 220, 255 });
-    bool recBlink = (std::fmod(m_staticTimer, 1.0f) < 0.5f);
+    // 4. Camera Name & REC indicator (Authentic top-left layout, no overlap with HUD)
+    bool recBlink = (std::fmod(m_staticTimer, 1.0f) < 0.6f);
     if (recBlink) {
-        DrawCircle(SCREEN_WIDTH - 120, 60, 10, RED);
-        DrawText("REC", SCREEN_WIDTH - 100, 50, 22, RED);
+        DrawCircle(58, 48, 7, RED);
+        if (m_font.texture.id != 0) {
+            DrawTextEx(m_font, "REC", Vector2{ 72.0f, 37.0f }, 24.0f, 1.5f, RED);
+        } else {
+            DrawText("REC", 72, 37, 20, RED);
+        }
+    }
+
+    if (m_font.texture.id != 0) {
+        DrawTextEx(m_font, GetCameraName(m_currentCam), Vector2{ 50.0f, 72.0f }, 28.0f, 1.5f, Color{ 235, 235, 235, 255 });
+    } else {
+        DrawText(GetCameraName(m_currentCam), 50, 72, 24, Color{ 220, 220, 220, 255 });
     }
 
     // 5. Interactive Surveillance Minimap in Bottom-Right
-    float mapX = 900.0f;
-    float mapY = 340.0f;
+    constexpr float mapOriginX = 880.0f;
+    constexpr float mapOriginY = 320.0f;
 
     if (m_mapTex.id != 0) {
-        DrawTexture(m_mapTex, mapX - 20, mapY - 20, WHITE);
+        DrawTexture(m_mapTex, static_cast<int>(mapOriginX), static_cast<int>(mapOriginY), WHITE);
     } else {
-        DrawRectangle(mapX - 20, mapY - 20, 360, 360, Color{ 10, 12, 16, 220 });
-        DrawRectangleLinesEx(Rectangle{ mapX - 20, mapY - 20, 360, 360 }, 2, Color{ 50, 60, 75, 255 });
+        DrawRectangle(static_cast<int>(mapOriginX), static_cast<int>(mapOriginY), 400, 400, Color{ 10, 12, 16, 220 });
+        DrawRectangleLinesEx(Rectangle{ mapOriginX, mapOriginY, 400.0f, 400.0f }, 2, Color{ 50, 60, 75, 255 });
     }
 
     Vector2 mousePos = GetVirtualMousePosition();
     for (const auto& btn : m_mapButtons) {
         bool isCurrent = (btn.id == m_currentCam);
-        bool hovering = CheckCollisionPointRec(mousePos, btn.rect);
+        bool hovering = CheckCollisionPointRec(mousePos, btn.hitRect) || CheckCollisionPointRec(mousePos, btn.rect);
 
         Color btnBg = isCurrent ? Color{ 50, 160, 70, 255 } : (hovering ? Color{ 80, 90, 110, 255 } : Color{ 35, 40, 50, 255 });
         DrawRectangleRec(btn.rect, btnBg);
         DrawRectangleLinesEx(btn.rect, isCurrent ? 2 : 1, isCurrent ? GREEN : GRAY);
 
         Color textCol = isCurrent ? WHITE : (hovering ? YELLOW : LIGHTGRAY);
-        DrawText(btn.label, btn.rect.x + 12, btn.rect.y + 7, 16, textCol);
+        if (m_font.texture.id != 0) {
+            Vector2 sz = MeasureTextEx(m_font, btn.label, 18.0f, 1.0f);
+            DrawTextEx(m_font, btn.label,
+                       Vector2{ btn.rect.x + (btn.rect.width - sz.x) * 0.5f,
+                                btn.rect.y + (btn.rect.height - sz.y) * 0.5f },
+                       18.0f, 1.0f, textCol);
+        } else {
+            int textW = MeasureText(btn.label, 16);
+            DrawText(btn.label,
+                     static_cast<int>(btn.rect.x + (btn.rect.width - static_cast<float>(textW)) * 0.5f),
+                     static_cast<int>(btn.rect.y + (btn.rect.height - 16.0f) * 0.5f),
+                     16,
+                     textCol);
+        }
     }
 
-    // Bottom close bar
+    // Bottom close bar (authentic FNAF 1 minimal flip chevron)
     bool hoveringClose = CheckCollisionPointRec(mousePos, m_monitorFlipBar);
-    DrawRectangleRec(m_monitorFlipBar, hoveringClose ? Color{ 200, 70, 70, 160 } : Color{ 40, 40, 50, 140 });
-    DrawRectangleLinesEx(m_monitorFlipBar, 2, hoveringClose ? RED : GRAY);
-    DrawText("[ SPACE / HOVER / CLICK ] TO CLOSE CAMERA MONITOR", m_monitorFlipBar.x + 55, m_monitorFlipBar.y + 12, 18, WHITE);
+    Color barColor = hoveringClose ? Color{ 140, 160, 190, 120 } : Color{ 40, 45, 55, 90 };
+    DrawRectangleRec(m_monitorFlipBar, barColor);
+    DrawRectangleLinesEx(m_monitorFlipBar, 2.0f, hoveringClose ? WHITE : Color{ 160, 160, 170, 180 });
+
+    float cx = m_monitorFlipBar.x + m_monitorFlipBar.width * 0.5f;
+    float cy = m_monitorFlipBar.y + m_monitorFlipBar.height * 0.5f;
+    DrawTriangle(Vector2{ cx - 14.0f, cy - 6.0f },
+                 Vector2{ cx, cy + 8.0f },
+                 Vector2{ cx + 14.0f, cy - 6.0f },
+                 hoveringClose ? WHITE : Color{ 200, 200, 210, 200 });
 }
 
 } // namespace FNAF

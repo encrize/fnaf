@@ -68,6 +68,7 @@ Texture2D AssetManager::GetTexture(const std::string& path) {
     }
 
     // Fallback if file missing or failed to load
+    std::cout << "[AssetManager] Warning: Texture not found or failed to load: " << path << std::endl;
     CreateFallbackTexture();
     return m_fallbackTexture;
 }
@@ -94,7 +95,7 @@ Font AssetManager::GetFont(const std::string& path, int fontSize) {
     if (FileExists(path.c_str())) {
         Font font = LoadFontEx(path.c_str(), fontSize, nullptr, 0);
         if (font.texture.id != 0) {
-            SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+            SetTextureFilter(font.texture, TEXTURE_FILTER_POINT);
             m_fonts[key] = font;
             return font;
         }

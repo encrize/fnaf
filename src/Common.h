@@ -13,18 +13,39 @@ constexpr int SCREEN_WIDTH = 1280;
 constexpr int SCREEN_HEIGHT = 720;
 constexpr int TARGET_FPS = 60;
 
-inline Vector2 GetVirtualMousePosition() {
-    Vector2 m = GetMousePosition();
+// Letterbox viewport: the single source of truth for BOTH drawing the render
+// target to the window AND converting the mouse into virtual coordinates.
+struct GameViewport {
+    float scale;
+    float offsetX;
+    float offsetY;
+};
+
+inline GameViewport GetGameViewport() {
     float screenW = static_cast<float>(GetScreenWidth());
     float screenH = static_cast<float>(GetScreenHeight());
-    if (screenW <= 0.0f || screenH <= 0.0f) return m;
+    if (screenW <= 0.0f || screenH <= 0.0f) return GameViewport{ 1.0f, 0.0f, 0.0f };
     float scale = std::min(screenW / static_cast<float>(SCREEN_WIDTH), screenH / static_cast<float>(SCREEN_HEIGHT));
-    if (scale <= 0.0f) return m;
-    float offsetX = (screenW - (static_cast<float>(SCREEN_WIDTH) * scale)) * 0.5f;
-    float offsetY = (screenH - (static_cast<float>(SCREEN_HEIGHT) * scale)) * 0.5f;
+    if (scale <= 0.0f) return GameViewport{ 1.0f, 0.0f, 0.0f };
+    return GameViewport{
+        scale,
+        (screenW - static_cast<float>(SCREEN_WIDTH) * scale) * 0.5f,
+        (screenH - static_cast<float>(SCREEN_HEIGHT) * scale) * 0.5f
+    };
+}
+
+// Unclamped: window mouse -> virtual 1280x720 coordinates
+inline Vector2 GetVirtualMousePositionRaw() {
+    GameViewport vp = GetGameViewport();
+    Vector2 m = GetMousePosition();
+    return Vector2{ (m.x - vp.offsetX) / vp.scale, (m.y - vp.offsetY) / vp.scale };
+}
+
+inline Vector2 GetVirtualMousePosition() {
+    Vector2 v = GetVirtualMousePositionRaw();
     return Vector2{
-        std::clamp((m.x - offsetX) / scale, 0.0f, static_cast<float>(SCREEN_WIDTH)),
-        std::clamp((m.y - offsetY) / scale, 0.0f, static_cast<float>(SCREEN_HEIGHT))
+        std::clamp(v.x, 0.0f, static_cast<float>(SCREEN_WIDTH)),
+        std::clamp(v.y, 0.0f, static_cast<float>(SCREEN_HEIGHT))
     };
 }
 

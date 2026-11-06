@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "BundleManager.h"
 #include <raylib.h>
 #include <algorithm>
 #include <iostream>
@@ -14,10 +15,19 @@ Game::~Game() {
 }
 
 bool Game::Initialize() {
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
+    LogDebug("Game::Initialize: Setting window flags...");
+    SetConfigFlags(FLAG_VSYNC_HINT);
+
+    LogDebug("Game::Initialize: Calling InitWindow(1280, 720)...");
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Five Nights at Freddy's");
+    if (!IsWindowReady()) {
+        LogDebug("Game::Initialize: InitWindow failed! IsWindowReady() returned false (OpenGL context could not be created).");
+        return false;
+    }
+    LogDebug("Game::Initialize: Window and OpenGL context ready.");
     SetTargetFPS(TARGET_FPS);
 
+    LogDebug("Game::Initialize: Initializing assets and audio...");
     m_assets.Initialize();
     m_audio.Initialize();
     m_settings.Apply();
@@ -27,11 +37,13 @@ bool Game::Initialize() {
     m_cameras.LoadAssets(m_assets);
     m_ui.LoadAssets(m_assets);
 
+    LogDebug("Game::Initialize: Creating render target...");
     m_screenTarget = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
     SetTextureFilter(m_screenTarget.texture, TEXTURE_FILTER_BILINEAR);
 
     m_audio.PlayAmbient(true);
 
+    LogDebug("Game::Initialize: Initialization complete.");
     return true;
 }
 
@@ -57,6 +69,11 @@ void Game::StartNightSession() {
 }
 
 void Game::ProcessInput() {
+    // Borderless fullscreen toggle (window size == monitor size, no WM resize games)
+    if (IsKeyPressed(KEY_F11)) {
+        ToggleBorderlessWindowed();
+    }
+
     // Debug toggle
     if (IsKeyPressed(KEY_F1)) {
         m_debugMode = !m_debugMode;
@@ -264,24 +281,7 @@ void Game::Render() {
             break;
 
         case GameState::NightIntro: {
-            ClearBackground(BLACK);
-            if (m_nightManager.GetCurrentNight() == 1 && m_nightIntroTimer < 3.5f) {
-                Texture2D news = m_assets.GetTexture("assets/images/newspaper.png");
-                if (news.id > 0) {
-                    DrawTexturePro(news,
-                                   Rectangle{ 0, 0, static_cast<float>(news.width), static_cast<float>(news.height) },
-                                   Rectangle{ 0, 0, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT) },
-                                   Vector2{ 0, 0 }, 0.0f, WHITE);
-                } else {
-                    DrawText("NIGHT 1", SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 - 40, 48, WHITE);
-                    DrawText("12:00 AM", SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 + 30, 26, Color{ 160, 160, 170, 255 });
-                }
-            } else {
-                std::string nStr = (m_nightManager.GetCurrentNight() == 7) ? "CUSTOM NIGHT" :
-                                   ("NIGHT " + std::to_string(m_nightManager.GetCurrentNight()));
-                DrawText(nStr.c_str(), SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 - 40, 48, WHITE);
-                DrawText("12:00 AM", SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 + 30, 26, Color{ 160, 160, 170, 255 });
-            }
+            m_ui.RenderNightIntro(m_nightManager.GetCurrentNight(), m_nightIntroTimer, m_assets);
             break;
         }
 
@@ -339,17 +339,35 @@ void Game::Render() {
     BeginDrawing();
     ClearBackground(BLACK);
 
-    float screenW = static_cast<float>(GetScreenWidth());
-    float screenH = static_cast<float>(GetScreenHeight());
-    float scale = std::min(screenW / static_cast<float>(SCREEN_WIDTH), screenH / static_cast<float>(SCREEN_HEIGHT));
-    float offsetX = (screenW - (static_cast<float>(SCREEN_WIDTH) * scale)) * 0.5f;
-    float offsetY = (screenH - (static_cast<float>(SCREEN_HEIGHT) * scale)) * 0.5f;
+    const GameViewport vp = GetGameViewport();
+    const float scale = vp.scale;
+    const float offsetX = vp.offsetX;
+    const float offsetY = vp.offsetY;
 
     // Flip texture vertically (render textures in OpenGL / raylib have inverted Y)
     Rectangle srcRec = { 0.0f, 0.0f, static_cast<float>(m_screenTarget.texture.width), -static_cast<float>(m_screenTarget.texture.height) };
     Rectangle dstRec = { offsetX, offsetY, static_cast<float>(SCREEN_WIDTH) * scale, static_cast<float>(SCREEN_HEIGHT) * scale };
 
     DrawTexturePro(m_screenTarget.texture, srcRec, dstRec, Vector2{ 0, 0 }, 0.0f, WHITE);
+
+    // F10: mouse mapping diagnostics (drawn in window space, after the blit)
+    static bool s_mouseDiag = false;
+    if (IsKeyPressed(KEY_F10)) s_mouseDiag = !s_mouseDiag;
+    if (s_mouseDiag) {
+        Vector2 raw = GetMousePosition();
+        Vector2 v = GetVirtualMousePositionRaw();
+        Vector2 back = { v.x * scale + offsetX, v.y * scale + offsetY }; // virtual -> window
+        Vector2 dpi = GetWindowScaleDPI();
+        DrawRectangle(0, 0, 760, 74, Color{ 0, 0, 0, 200 });
+        DrawText(TextFormat("screen %dx%d  render %dx%d  dpi %.2f,%.2f  scale %.3f",
+                            GetScreenWidth(), GetScreenHeight(), GetRenderWidth(), GetRenderHeight(),
+                            dpi.x, dpi.y, scale), 8, 6, 18, RED);
+        DrawText(TextFormat("raw %.0f,%.0f  virtual %.0f,%.0f  off %.0f,%.0f",
+                            raw.x, raw.y, v.x, v.y, offsetX, offsetY), 8, 30, 18, RED);
+        DrawText("blue = raw cursor, green = virtual mapped back (must overlap)", 8, 52, 16, WHITE);
+        DrawCircleLines(static_cast<int>(raw.x), static_cast<int>(raw.y), 8, BLUE);
+        DrawCircleLines(static_cast<int>(back.x), static_cast<int>(back.y), 12, GREEN);
+    }
 
     EndDrawing();
 }
